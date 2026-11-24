@@ -15,3 +15,14 @@
 @media (prefers-reduced-motion: reduce) {
   .flashcard, .card-back { transition: none; animation: none; }
 }
+
+/* Spot-It drills */
+.drill-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; font-weight: 600; }
+.drill-timer { font-variant-numeric: tabular-nums; }
+.drill-item { overflow-wrap: anywhere; }
+.drill-options { display: grid; gap: 0.4rem; }
+.drill-options button { text-align: left; }
+.drill-options button.right { border-color: var(--ok); outline: 2px solid var(--ok); }
+.drill-options button.wrong { border-color: var(--bad); outline: 2px solid var(--bad); }
+.drill-feedback:focus { outline: none; }
+.drill-feedback p { overflow-wrap: anywhere; }

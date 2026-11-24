@@ -100,3 +100,20 @@ describe('review', () => {
     expect(store.get().cards).toEqual({});
   });
 });
+
+describe('remount', () => {
+  it('rates once after a remount on the same host', () => {
+    const store = startedStore();
+    const host = document.createElement('div');
+    document.body.append(host);
+    const ctx = { registry, store, runner, now: () => NOW };
+    mountCardsPage(host, ctx, 'due')();
+    const dispose = mountCardsPage(host, ctx, 'due');
+    (host.querySelector('[data-testid="card-flip"]') as HTMLButtonElement).click();
+    (host.querySelector('[data-testid="rate-again"]') as HTMLButtonElement).click();
+    expect(Object.keys(store.get().cards)).toHaveLength(1);
+    expect(Object.values(store.get().cards)[0]!.again).toBe(1);
+    dispose();
+    host.remove();
+  });
+});

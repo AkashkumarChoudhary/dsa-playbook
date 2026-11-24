@@ -85,12 +85,13 @@ export function mountCardsPage(host: HTMLElement, ctx: PageContext, deck?: strin
     draw();
   };
 
+  const ac = new AbortController();
   host.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const rating = target.closest<HTMLElement>('[data-rating]')?.dataset.rating as Rating | undefined;
     if (rating) rate(rating);
     else if (target.closest('[data-testid="card-flip"], [data-testid="flashcard"]')) flip();
-  });
+  }, { signal: ac.signal });
   const onKey = (e: KeyboardEvent) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     const tag = (e.target as HTMLElement | null)?.tagName;
@@ -105,6 +106,7 @@ export function mountCardsPage(host: HTMLElement, ctx: PageContext, deck?: strin
   document.addEventListener('keydown', onKey);
   draw();
   return () => {
+    ac.abort();
     document.removeEventListener('keydown', onKey);
     host.innerHTML = '';
   };
