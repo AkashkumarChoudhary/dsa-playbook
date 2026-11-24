@@ -1,0 +1,20 @@
+{
+  "className": "Solution",
+  "method": "containsDuplicate",
+  "params": [{ "name": "nums", "type": "int[]" }],
+  "returns": "boolean",
+  "compare": "exact",
+  "samples": [
+    { "id": "s1", "args": [[1, 2, 3, 1]], "expected": true },
+    { "id": "s2", "args": [[1, 2, 3, 4]], "expected": false }
+  ],
+  "hidden": [
+    { "id": "h1", "args": [[7]], "expected": false },
+    { "id": "h2", "args": [[7, 7, 7, 7]], "expected": true },
+    { "id": "h3", "args": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 1]], "expected": true },
+    { "id": "h4", "args": [[-1000000000, 1000000000, 0, -1000000000]], "expected": true },
+    { "id": "h5", "args": [[2, 14, 18, 22, 22]], "expected": true },
+    { "id": "h6", "args": [[5, 4, 3, 2, 1]], "expected": false }
+  ],
+  "speed": { "id": "speed", "args": [{ "gen": "intRange", "n": 100000 }], "expected": false, "timeLimitMs": 2000 }
+}
