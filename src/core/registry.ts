@@ -163,9 +163,21 @@ export function buildRegistry(input: ContentInput): Registry {
   };
 }
 
+/** Every page the site can show. The e2e smoke test opens each one. */
 export function allRoutes(registry: Registry): string[] {
   return [
     '#/',
+    '#/dashboard',
+    '#/roadmap',
+    '#/settings',
+    '#/drills',
+    ...registry.modules.map((m) => `#/drills/${m.id}`),
+    '#/cards',
+    '#/cards/due',
+    '#/cards/weak',
+    '#/cards/interview',
+    ...registry.modules.map((m) => `#/cards/module-${m.id}`),
+    ...registry.sheets.map((s) => `#/sheets/${s.id}`),
     ...registry.modules.map((m) => `#/m/${m.id}`),
     ...registry.lessonIds.map((id) => `#/l/${id}`),
     ...registry.problemIds.map((id) => `#/p/${id}`),

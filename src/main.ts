@@ -12,7 +12,7 @@ import './styles/index.css';
 const store = createStore(browserStorage(window), window);
 const theme = initTheme(window, store);
 const registry = buildRegistry(contentInput);
-const shell = mountShell(document.getElementById('app') as HTMLElement, registry, theme);
+const shell = mountShell(document.getElementById('app') as HTMLElement, registry, theme, store);
 const runner = new TeaVMRunner();
 window.__dsa = { routes: allRoutes(registry) };
 

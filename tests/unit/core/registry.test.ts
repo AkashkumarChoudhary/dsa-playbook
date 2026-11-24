@@ -40,7 +40,14 @@ describe('buildRegistry', () => {
     expect(() => buildRegistry(i)).toThrow('Duplicate lesson id: l1');
   });
   it('lists every route', () => {
-    expect(allRoutes(buildRegistry(input()))).toEqual(['#/', '#/m/a', '#/m/b', '#/l/l1', '#/p/p1']);
+    expect(allRoutes(buildRegistry(input()))).toEqual([
+      '#/', '#/dashboard', '#/roadmap', '#/settings',
+      '#/drills', '#/drills/a', '#/drills/b',
+      '#/cards', '#/cards/due', '#/cards/weak', '#/cards/interview', '#/cards/module-a', '#/cards/module-b',
+      '#/m/a', '#/m/b', '#/l/l1', '#/p/p1',
+    ]);
+    const withSheet = buildRegistry({ ...input(), catalog: { modules: [], lessons: [], patterns: [], problems: [], sheets: [{ id: 'striver-bs', title: 'S', credit: 'c', problemIds: [] }] } });
+    expect(allRoutes(withSheet)).toContain('#/sheets/striver-bs');
   });
 });
 

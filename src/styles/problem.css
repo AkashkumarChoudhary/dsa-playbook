@@ -1,4 +1,4 @@
-.problem section { scroll-margin-top: 4rem; }
+.problem section { scroll-margin-top: calc(var(--top-h) + 0.5rem); }
 .spot-first { display: grid; gap: 0.5rem; }
 .spot-options { display: grid; gap: 0.35rem; }
 .spot-options label { display: flex; gap: 0.5rem; align-items: center; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
