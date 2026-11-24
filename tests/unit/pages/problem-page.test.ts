@@ -56,18 +56,50 @@ describe('mountProblemPage', () => {
       return { getValue: () => editorValue, setValue: (v: string) => { editorValue = v; }, focus() {}, destroy() {} };
     };
     const dispose = mountProblemPage(host, problem, { registry, makeEditor, store: createStore({ getItem: (k) => d[k] ?? null, setItem: (k, v) => { d[k] = v; } }), runner: { ready: async () => {}, run: async () => ({ kind: 'tests', results: [], stdout: '' }), stop() {} } });
-    for (const id of ['problem', 'spot', 'hints', 'lab', 'approaches', 'dry-run', 'compare', 'edge-cases', 'explain', 'hook', 'related']) expect(host.querySelector(`#${id}`)).not.toBeNull();
+    for (const id of ['problem', 'spot', 'hints', 'lab', 'approaches', 'dry-run', 'compare', 'edge-cases', 'reveal', 'mistakes', 'explain', 'hook', 'related']) expect(host.querySelector(`#${id}`)).not.toBeNull();
     const next = host.querySelector<HTMLButtonElement>('[data-testid="hint-next"]')!;
     expect(host.querySelectorAll('.hint:not([hidden])')).toHaveLength(0);
     next.click();
     expect(host.querySelectorAll('.hint:not([hidden])')).toHaveLength(1);
     next.click(); next.click();
     expect(next.disabled).toBe(true);
+    expect(host.querySelector('.player')).toBeNull();
+    expect(host.querySelector('#approaches')!.closest('[hidden]')).not.toBeNull();
+    (host.querySelector('[data-testid="show-solutions"]') as HTMLButtonElement).click();
+    expect(host.querySelector('#approaches')!.closest('[hidden]')).toBeNull();
+    expect(host.querySelectorAll('.player')).toHaveLength(1);
+    expect(document.activeElement).toBe(host.querySelector('#approaches h2'));
     expect(host.querySelector('.player-note')!.textContent).toBe('Optimal step.');
     (host.querySelector('[data-testid="load-into-lab-optimal"]') as HTMLButtonElement).click();
     expect(editorValue).toContain('/* optimal */');
     expect(editorValue).not.toContain('@L:');
     dispose();
+    host.remove();
+  });
+
+  function mount() {
+    const registry = buildRegistry({ modules: [], lessons: [], problems: [problem], traces: [trace] });
+    const d: Record<string, string> = {};
+    const host = document.createElement('div');
+    document.body.append(host);
+    const makeEditor = () => ({ getValue: () => '', setValue() {}, focus() {}, destroy() {} });
+    const dispose = mountProblemPage(host, problem, { registry, makeEditor, store: createStore({ getItem: (k) => d[k] ?? null, setItem: (k, v) => { d[k] = v; } }), runner: { ready: async () => {}, run: async () => ({ kind: 'tests', results: [], stdout: '' }), stop() {} } });
+    return { host, dispose };
+  }
+
+  it('cleans up after a reveal', () => {
+    const { host, dispose } = mount();
+    (host.querySelector('[data-testid="show-solutions"]') as HTMLButtonElement).click();
+    expect(host.querySelector('.player')).not.toBeNull();
+    expect(() => dispose()).not.toThrow();
+    expect(host.innerHTML).toBe('');
+    host.remove();
+  });
+
+  it('cleans up without a reveal', () => {
+    const { host, dispose } = mount();
+    expect(host.querySelector('[data-testid="show-solutions"]')).not.toBeNull();
+    expect(() => dispose()).not.toThrow();
     host.remove();
   });
 });

@@ -17,6 +17,7 @@ for (const theme of ['dark', 'light'] as const) {
         if (name === 'problem') {
           // CodeMirror measures its lines only when it is on screen. Scroll to it like a learner would.
           await page.locator('.lab').scrollIntoViewIfNeeded();
+          await page.getByTestId('show-solutions').click();
           await expect(page.locator('.cm-lineNumbers .cm-gutterElement').nth(1)).toHaveCSS('height', /^(19|20|21)\./);
           await page.evaluate(() => window.scrollTo(0, 0));
         }
@@ -43,4 +44,13 @@ test('normal motion: the dry run plays when in view', async ({ page }) => {
   const count = page.locator('.player-count').first();
   await count.scrollIntoViewIfNeeded();
   await expect(count).not.toHaveText(/^Step 1 of/, { timeout: 5000 });
+});
+
+test('the dry run is hidden until the solutions are shown', async ({ page }) => {
+  await page.goto('./#/p/contains-duplicate');
+  await expect(page.locator('#dry-run')).toBeHidden();
+  await expect(page.locator('.player')).toHaveCount(0);
+  await page.getByTestId('show-solutions').click();
+  await expect(page.locator('#dry-run')).toBeVisible();
+  await expect(page.locator('.player')).toHaveCount(1);
 });

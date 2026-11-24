@@ -9,6 +9,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('the optimal solution passes every test in the browser', async ({ page }) => {
+  await page.getByTestId('show-solutions').click();
   await page.locator('details.approach[data-level="optimal"] > summary').click();
   await page.getByTestId('load-into-lab-optimal').click();
   await page.getByTestId('lab-submit').click();

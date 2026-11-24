@@ -15,3 +15,7 @@
 .spot-options label span, .spot-result, .hint, .approach p { overflow-wrap: anywhere; }
 .spot-result:focus { outline: none; }
 .problem { min-width: 0; }
+.reveal-gate { border: 1px dashed var(--line); border-radius: 8px; padding: 0.8rem 1rem; display: grid; gap: 0.5rem; justify-items: start; }
+.reveal-gate p { margin: 0; }
+#solutions[hidden] { display: none; }
+#approaches > h2:focus { outline: none; }

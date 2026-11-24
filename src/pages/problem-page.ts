@@ -33,7 +33,15 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
 
       <section id="lab"><h2>🧪 Try it yourself</h2><div class="lab-host"></div></section>
 
-      <section id="approaches"><h2>🐢 → 🚀 Approaches</h2>
+      <section id="edge-cases"><h2>⚠️ Edge cases</h2><ul>${problem.edgeCases.map((e) => html`<li>${e}</li>`)}</ul></section>
+
+      <section id="reveal" class="reveal-gate">
+        <p>Try it yourself first. Opening the solutions counts as a peek.</p>
+        <button type="button" data-testid="show-solutions">Show solutions</button>
+      </section>
+
+      <div id="solutions" hidden>
+      <section id="approaches"><h2 tabindex="-1">🐢 → 🚀 Approaches</h2>
         ${problem.approaches.map((a) => html`
           <details class="approach card" data-level="${a.level}">
             <summary>${LEVEL_LABEL[a.level]}: ${a.title} <span class="muted">${a.time} time, ${a.space} space</span></summary>
@@ -51,9 +59,7 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
           <tbody>${problem.approaches.map((a) => html`<tr><td>${LEVEL_LABEL[a.level]}</td><td>${a.time}</td><td>${a.space}</td><td>${a.nextStepRemoves ?? 'This is the goal.'}</td></tr>`)}</tbody></table></div>
       </section>
 
-      <section id="edge-cases"><h2>⚠️ Edge cases</h2><ul>${problem.edgeCases.map((e) => html`<li>${e}</li>`)}</ul>
-        <h3>Common mistakes</h3><ul>${problem.mistakes.map((m) => html`<li>${m}</li>`)}</ul>
-      </section>
+      <section id="mistakes"><h2>🚧 Common mistakes</h2><ul>${problem.mistakes.map((m) => html`<li>${m}</li>`)}</ul></section>
 
       <section id="explain"><h2>🗣️ The 30-second explanation</h2>
         <details class="card"><summary>Say it out loud first, then reveal</summary><p>${problem.explain30}</p></details>
@@ -65,6 +71,7 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
         <ul>${problem.related.map(link)}</ul>
         ${problem.lookAlikes.length ? html`<h3>Look-alikes</h3><ul>${problem.lookAlikes.map(link)}</ul>` : null}
       </section>
+      </div>
     </article>`);
 
   const disposeSpot = mountSpotFirst(host.querySelector('.spot-host') as HTMLElement, problem.spot);
@@ -94,9 +101,17 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
   const trace = optimal?.traceId ? ctx.registry.trace(optimal.traceId) : undefined;
   const sample = problem.spec.samples[0];
   const vizHost = host.querySelector('.viz-host') as HTMLElement;
-  const disposeViz = optimal && trace && sample
-    ? mountVizGroup(vizHost, [{ label: optimal.title, trace, java: optimal.java, input: trace.fromArgs(sample.args) }])
-    : (() => { vizHost.textContent = 'No dry run for this problem yet.'; return () => {}; })();
+  let disposeViz = () => {};
+  const solutions = host.querySelector<HTMLElement>('#solutions') as HTMLElement;
+  const gateBtn = host.querySelector<HTMLButtonElement>('[data-testid="show-solutions"]') as HTMLButtonElement;
+  gateBtn.addEventListener('click', () => {
+    solutions.hidden = false;
+    if (optimal && trace && sample) disposeViz = mountVizGroup(vizHost, [{ label: optimal.title, trace, java: optimal.java, input: trace.fromArgs(sample.args) }]);
+    else vizHost.textContent = 'No dry run for this problem yet.';
+    gateBtn.disabled = true;
+    gateBtn.textContent = 'Solutions shown';
+    host.querySelector<HTMLElement>('#approaches > h2')?.focus();
+  }, { once: true });
 
   return () => {
     disposeSpot();

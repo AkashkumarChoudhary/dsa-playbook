@@ -8,6 +8,7 @@ test('every reference approach passes in the browser runner', async ({ page }) =
   expect(problemRoutes.length).toBeGreaterThan(0);
   for (const r of problemRoutes) {
     await page.goto(`./${r}`);
+    await page.getByTestId('show-solutions').click();
     const levels = await page.locator('details.approach').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.level as string));
     expect(levels.length, r).toBeGreaterThan(0);
     expect(levels, r).toContain('optimal');
