@@ -8,6 +8,7 @@ import { renderHome } from './home';
 import { mountLessonPage } from './lesson-page';
 import { renderModule } from './module-page';
 import { renderNotFound } from './not-found';
+import { mountProblemPage } from './problem-page';
 
 export interface PageContext {
   registry: Registry;
@@ -36,6 +37,13 @@ export function renderRoute(route: Route, outlet: HTMLElement, ctx: PageContext)
     if (lesson) {
       const cleanup = mountLessonPage(outlet, lesson, ctx);
       return { title: `${lesson.title} · DSA Playbook`, cleanup };
+    }
+  }
+  if (route.name === 'problem') {
+    const problem = ctx.registry.problem(route.id);
+    if (problem) {
+      const cleanup = mountProblemPage(outlet, problem, ctx);
+      return { title: `${problem.title} · DSA Playbook`, cleanup };
     }
   }
   render(outlet, renderNotFound());

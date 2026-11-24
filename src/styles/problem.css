@@ -1,1 +1,17 @@
-/* filled in Task 19 */
+.problem section { scroll-margin-top: 4rem; }
+.spot-first { display: grid; gap: 0.5rem; }
+.spot-options { display: grid; gap: 0.35rem; }
+.spot-options label { display: flex; gap: 0.5rem; align-items: center; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.clue-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.clue-chip[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.spot-result ul { margin: 0.3rem 0 0; }
+.hints { padding-left: 1.4rem; }
+.hint { margin-bottom: 0.4rem; }
+.approach { margin-bottom: 0.6rem; }
+.approach summary { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.approach pre.code { margin-top: 0.5rem; }
+.spot-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.spot-fieldset legend { padding: 0; margin-bottom: 0.4rem; overflow-wrap: anywhere; }
+.spot-options label span, .spot-result, .hint, .approach p { overflow-wrap: anywhere; }
+.spot-result:focus { outline: none; }
+.problem { min-width: 0; }
