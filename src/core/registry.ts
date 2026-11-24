@@ -1,4 +1,5 @@
 import type { Approach, Catalog, CatalogModule, CatalogProblem, DrillItem, Lesson, Module, Pattern, Problem, Sheet } from '../content-types';
+import { generateCards, type Card } from '../engine/cards';
 import type { TraceDef } from '../engine/trace';
 
 export interface ContentInput {
@@ -58,6 +59,8 @@ export interface Registry {
   roadmapProblem(id: string): RoadmapProblem | undefined;
   pattern(id: string): Pattern | undefined;
   sheet(id: string): Sheet | undefined;
+  /** flashcards made from built lessons and problems, made on first use */
+  readonly cards: Card[];
 }
 
 export const EMPTY_CATALOG: Catalog = { modules: [], lessons: [], patterns: [], problems: [], sheets: [] };
@@ -121,6 +124,11 @@ export function buildRegistry(input: ContentInput): Registry {
   const problemById = new Map(allProblems.map((p) => [p.id, p]));
   const patternById = new Map(catalog.patterns.map((p) => [p.id, p]));
   const sheetById = new Map(catalog.sheets.map((s) => [s.id as string, s]));
+  const patternOfLesson = (lessonId: string) => {
+    const patternId = lessonById.get(lessonId)?.patternId;
+    return patternId ? patternById.get(patternId) : undefined;
+  };
+  let cards: Card[] | null = null;
   return {
     modules: [...modules.values()].sort((a, b) => a.order - b.order),
     lessonIds: [...lessons.keys()],
@@ -140,6 +148,10 @@ export function buildRegistry(input: ContentInput): Registry {
     roadmapProblem: (id) => problemById.get(id),
     pattern: (id) => patternById.get(id),
     sheet: (id) => sheetById.get(id),
+    get cards() {
+      cards ??= generateCards(input.lessons, input.problems, patternOfLesson);
+      return cards;
+    },
   };
 }
 
