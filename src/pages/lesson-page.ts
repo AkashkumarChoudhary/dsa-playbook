@@ -90,7 +90,11 @@ export function mountLessonPage(host: HTMLElement, lesson: Lesson, ctx: PageCont
       retry.hidden = false;
     });
   };
-  retry.addEventListener('click', startQuiz);
+  retry.addEventListener('click', () => {
+    startQuiz();
+    // The retry button hides itself, so move focus to the first answer.
+    quizHost.querySelector<HTMLElement>('.quiz-option')?.focus();
+  });
   startQuiz();
   return () => {
     disposeViz();

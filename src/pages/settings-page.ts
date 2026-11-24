@@ -35,7 +35,7 @@ export function parseProgressFile(text: string): { ok: true; state: StoredState 
   try {
     raw = JSON.parse(text);
   } catch {
-    return { ok: false, message: 'This file is not valid JSON. Pick a file you exported from this site.' };
+    return { ok: false, message: 'This file cannot be read. Pick a file you exported from this site.' };
   }
   if (typeof raw !== 'object' || raw === null || (raw as { version?: unknown }).version !== 1) {
     return { ok: false, message: 'This is not a DSA Playbook progress file.' };
@@ -70,7 +70,8 @@ export function mountSettings(host: HTMLElement, ctx: PageContext, deps: Setting
   const ac = new AbortController();
   const { signal } = ac;
 
-  host.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((input) =>
+  const themeInputs = [...host.querySelectorAll<HTMLInputElement>('input[name="theme"]')];
+  themeInputs.forEach((input) =>
     input.addEventListener('change', () => {
       ctx.store.update((d) => {
         d.settings.theme = input.value as ThemeSetting;
@@ -78,6 +79,10 @@ export function mountSettings(host: HTMLElement, ctx: PageContext, deps: Setting
       });
     }, { signal }),
   );
+  // The header button, an import or another tab can change the theme. Keep the choice in step.
+  const offTheme = ctx.store.subscribe((state) => {
+    for (const input of themeInputs) input.checked = input.value === state.settings.theme;
+  });
   host.querySelector('[data-testid="export"]')!.addEventListener('click', () => {
     download(`dsa-playbook-progress-${dayKey(now())}.json`, `${JSON.stringify(ctx.store.get(), null, 2)}\n`);
     status.textContent = 'Progress exported.';
@@ -115,6 +120,7 @@ export function mountSettings(host: HTMLElement, ctx: PageContext, deps: Setting
     status.textContent = 'Progress imported.';
   }, { signal });
   return () => {
+    offTheme();
     ac.abort();
     host.innerHTML = '';
   };

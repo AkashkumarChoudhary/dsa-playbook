@@ -1,6 +1,6 @@
 import type { MarkKey, ProblemProgress } from '../core/store';
 import type { RunResult } from '../lab/runner';
-import { DAY_MS } from './days';
+import { DAY_MS, dayKey } from './days';
 
 /** Re-solve reminders come 3, 7 and 21 days after the first solve (spec §9.2). */
 export const RESOLVE_GAPS_DAYS = [3, 7, 21] as const;
@@ -32,16 +32,27 @@ export function firstSolveAt(p: ProblemProgress | undefined): number | undefined
   return times.length ? Math.min(...times) : undefined;
 }
 
-export function resolveDue(p: ProblemProgress | undefined, now: number): boolean {
-  return p !== undefined && isSolved(p) && p.resolveSteps < 3 && p.nextResolveAt !== undefined && now >= p.nextResolveAt;
+/**
+ * A re-solve is due once its calendar day has come, so a re-solve done that morning counts.
+ * Today, the tracker and the dashboard all use this.
+ */
+export function resolveDue(p: Readonly<ProblemProgress> | undefined, now: number): boolean {
+  return p !== undefined && isSolved(p) && p.resolveSteps < 3 && p.nextResolveAt !== undefined && dayKey(now) >= dayKey(p.nextResolveAt);
+}
+
+/** The built problems with a re-solve due today. Today and the dashboard count this same list. */
+export function dueResolves<T extends { id: string; built: boolean }>(problems: readonly T[], progress: Readonly<Record<string, ProblemProgress>>, now: number): T[] {
+  return problems.filter((p) => p.built && resolveDue(progress[p.id], now));
 }
 
 /**
  * Step `step` (0, 1 or 2) is due 3, 7 or 21 days after the first solve. It is never sooner than
- * one day after now, so a learner who comes back late does not get two re-solves on one day.
+ * the next calendar day, so a learner who comes back late does not get two re-solves on one day.
  */
 function nextResolveAt(first: number, step: number, now: number): number {
-  return Math.max(first + (RESOLVE_GAPS_DAYS[step] ?? 0) * DAY_MS, now + DAY_MS);
+  const at = Math.max(first + (RESOLVE_GAPS_DAYS[step] ?? 0) * DAY_MS, now + DAY_MS);
+  // On the day the clocks go back, 24 hours after a time just past midnight is still the same day.
+  return dayKey(at) > dayKey(now) ? at : at + DAY_MS / 24;
 }
 
 /** Starts the re-solve schedule on the first solve, or completes the next step when it is due. */
@@ -52,7 +63,7 @@ function startOrAdvance(p: ProblemProgress, now: number): void {
     p.nextResolveAt = nextResolveAt(first, 0, now);
     return;
   }
-  if (now < p.nextResolveAt) return;
+  if (!resolveDue(p, now)) return;
   p.resolveSteps += 1;
   if (p.resolveSteps < 3) p.nextResolveAt = nextResolveAt(first, p.resolveSteps, now);
   else delete p.nextResolveAt;

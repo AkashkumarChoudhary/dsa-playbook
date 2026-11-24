@@ -41,6 +41,7 @@ export function mountShell(root: HTMLElement, registry: Registry, theme: ThemeCo
         <button type="button" class="menu-btn" data-action="menu" aria-label="Open menu" aria-expanded="false">☰</button>
         <a class="brand" href="#/">🧩 DSA Playbook</a>
         <span class="spacer"></span>
+        <a class="button" href="${href({ name: 'settings' })}" aria-label="Settings"><span aria-hidden="true">⚙️</span></a>
         <button type="button" data-action="theme" aria-label="Switch dark or light theme">🌓</button>
       </div>
       <nav class="topnav" aria-label="Main">

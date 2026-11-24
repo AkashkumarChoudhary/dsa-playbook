@@ -67,7 +67,8 @@ describe('decks', () => {
   const p = (dueDay: string, again = 0): CardProgress => ({ box: 2, dueDay, again, lastDay: '2026-11-20', updatedAt: 1 });
 
   it('shows only cards from started modules', () => {
-    expect(deckCards('due', cards, {}, new Set(['m2']), today)!.map((c) => c.id)).toEqual(['p:spot', 'p:hook', 'p:explain', 'p:edges']);
+    // New cards come in a mixed order, so compare them sorted.
+    expect(deckCards('due', cards, {}, new Set(['m2']), today)!.map((c) => c.id).sort()).toEqual(['p:edges', 'p:explain', 'p:hook', 'p:spot']);
     expect(deckCards('due', cards, {}, new Set(), today)).toEqual([]);
   });
 
@@ -89,6 +90,23 @@ describe('decks', () => {
     ...Array.from({ length: 20 }, (_, i): Card => ({ id: `t${i}:trap-0`, kind: 'trap', sourceId: `t${i}`, moduleId: 'm1', patternIds: [], title: 'T', front: '', back: '' })),
     ...Array.from({ length: 20 }, (_, i): Card => ({ id: `h${i}:hook`, kind: 'hook', sourceId: `h${i}`, moduleId: 'm1', patternIds: [], title: 'H', front: '', back: '' })),
   ];
+
+  it('Due today: mixes the new cards, in one order all day and a new order the next day', () => {
+    const ids = (progress: Record<string, CardProgress>, day: string) => deckCards('due', many, progress, new Set(['m1']), day)!.map((c) => c.id);
+    const day1 = ids({}, today);
+    expect([...day1].sort()).toEqual(many.map((c) => c.id).sort());
+    expect(day1).not.toEqual(many.map((c) => c.id));
+    expect(ids({}, today)).toEqual(day1);
+    expect(ids({}, '2026-11-25')).not.toEqual(day1);
+    // A new card rated today leaves the deck. The other new cards keep their order.
+    expect(ids({ [day1[0]!]: p('2026-11-27') }, today)).toEqual(day1.slice(1));
+    // Seen cards that are due still come first, oldest first, before the mixed new cards.
+    const seen = ids({ 't3:trap-0': p('2026-11-22'), 'h7:hook': p('2026-11-20') }, today);
+    expect(seen.slice(0, 2)).toEqual(['h7:hook', 't3:trap-0']);
+    expect(seen.slice(2)).toEqual(day1.filter((id) => id !== 'h7:hook' && id !== 't3:trap-0'));
+    // The interview deck keeps its own order: hook, trap, hook, trap, in content order.
+    expect(deckCards('interview', many, {}, new Set(['m1']), today)!.slice(0, 4).map((c) => c.id)).toEqual(['h0:hook', 't0:trap-0', 'h1:hook', 't1:trap-0']);
+  });
 
   it('Interview tomorrow: mixes both kinds and stops at 30', () => {
     const deck = deckCards('interview', many, {}, new Set(['m1']), today)!;

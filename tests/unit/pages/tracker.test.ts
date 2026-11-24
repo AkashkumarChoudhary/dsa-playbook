@@ -72,4 +72,19 @@ describe('tracker box', () => {
     expect(store.get().problems.p?.resolveSteps).toBe(1);
     dispose();
   });
+
+  it('keeps keyboard focus in the box when "I solved this elsewhere" turns off', () => {
+    const { q, store, dispose } = mount();
+    const level = () => q('track-level').closest<HTMLElement>('.tracker-level');
+    expect(level()!.getAttribute('tabindex')).toBe('-1');
+    q('track-elsewhere').focus();
+    q('track-elsewhere').click();
+    expect(q('track-elsewhere').disabled).toBe(true);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(level());
+    // A later redraw keeps the focus on the new level line.
+    store.update(() => {});
+    expect(document.activeElement).toBe(level());
+    dispose();
+  });
 });

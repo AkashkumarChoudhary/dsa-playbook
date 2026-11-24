@@ -6,7 +6,7 @@ import { addDays, DAY_MS, dayKey, lastNDays, streak } from './days';
 import { attemptsNewestFirst, patternAccuracy } from './drills';
 import { lessonDone, patternStatus, type PatternStatus } from './mastery';
 import { startedModules } from './progress';
-import { baseLevel, firstSolveAt, isSolved, resolveDue } from './tracker';
+import { baseLevel, dueResolves, firstSolveAt, isSolved } from './tracker';
 
 /** What the dashboard reads from the course. A Registry fits this shape. */
 export interface DashboardSource {
@@ -88,7 +88,7 @@ export function computeDashboard(state: Readonly<StoredState>, src: DashboardSou
 
   const started = startedModules(state, (id) => moduleOfLesson.get(id));
   const dueCards = deckCards('due', src.cards, state.cards, started, today)?.length ?? 0;
-  const dueResolves = src.allProblems.filter((p) => resolveDue(state.problems[p.id], now)).length;
+  const resolvesDue = dueResolves(src.allProblems, state.problems, now).length;
 
   const levels = LEVELS.map(({ level, title }) => {
     const lessons = src.allLessons.filter((l) => levelOf.get(l.moduleId) === level);
@@ -155,7 +155,7 @@ export function computeDashboard(state: Readonly<StoredState>, src: DashboardSou
   });
 
   return {
-    headline: { masteredPct: pct(mastered, src.patterns.length), streak: streak(state.days, today), dueToday: dueCards + dueResolves },
+    headline: { masteredPct: pct(mastered, src.patterns.length), streak: streak(state.days, today), dueToday: dueCards + resolvesDue },
     lessons: counter(doneLessons.length, src.allLessons.length),
     problems: counter(solvedProblems.length, src.allProblems.length),
     patterns: counter(mastered, src.patterns.length),

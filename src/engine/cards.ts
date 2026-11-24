@@ -1,6 +1,7 @@
 import type { Lesson, Pattern, Problem } from '../content-types';
 import { html, raw } from '../core/html';
 import type { CardProgress } from '../core/store';
+import { mulberry32, shuffle } from './drills';
 import { isDue } from './leitner';
 
 /** The 8 card kinds of spec §9.5. */
@@ -100,7 +101,7 @@ export function deckCards(deck: string, cards: Card[], progress: Readonly<Record
     const due = open.filter((c) => isDue(progress[c.id], today));
     const dueDay = (c: Card) => progress[c.id]?.dueDay ?? '';
     const seen = due.filter((c) => progress[c.id]).sort((a, b) => (dueDay(a) < dueDay(b) ? -1 : dueDay(a) > dueDay(b) ? 1 : 0));
-    return [...seen, ...due.filter((c) => !progress[c.id])];
+    return [...seen, ...mixedNewCards(due.filter((c) => !progress[c.id]), cards, today)];
   }
   if (deck === 'weak') {
     const again = (c: Card) => progress[c.id]?.again ?? 0;
@@ -112,6 +113,16 @@ export function deckCards(deck: string, cards: Card[], progress: Readonly<Record
     return open.filter((c) => c.moduleId === moduleId);
   }
   return null;
+}
+
+/**
+ * New cards in a mixed order (spec §6.2). The day key is the seed, so the order is the same all day
+ * and changes the next day. Every card is shuffled, then the new ones are kept, so a card rated
+ * today leaves the deck without moving the others.
+ */
+function mixedNewCards(fresh: Card[], all: Card[], today: string): Card[] {
+  const keep = new Set(fresh);
+  return shuffle(all, mulberry32(Number(today.replace(/-/g, '')))).filter((c) => keep.has(c));
 }
 
 /**

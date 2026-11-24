@@ -1,17 +1,11 @@
 import { html, type SafeHtml } from '../core/html';
 import { href } from '../core/router';
 import { deckCards } from '../engine/cards';
-import { dayKey, daysBetween, streak } from '../engine/days';
+import { dayKey, streak } from '../engine/days';
 import { hasProgress, lastOpened, startedModules } from '../engine/progress';
-import { isSolved } from '../engine/tracker';
-import type { ProblemProgress } from '../core/store';
+import { dueResolves } from '../engine/tracker';
 import { renderHome } from './home';
 import type { PageContext } from './router-view';
-
-/** A re-solve is due when its calendar day has come, so compare day keys and not raw milliseconds. */
-function resolveDueToday(p: Readonly<ProblemProgress> | undefined, today: string): boolean {
-  return p !== undefined && isSolved(p) && p.resolveSteps < 3 && p.nextResolveAt !== undefined && daysBetween(dayKey(p.nextResolveAt), today) >= 0;
-}
 
 /** `#/` (spec §7.1): cards due, problems to solve again, one mixed drill, and where to continue. */
 export function renderToday(ctx: PageContext, now: number): SafeHtml {
@@ -21,7 +15,7 @@ export function renderToday(ctx: PageContext, now: number): SafeHtml {
   const today = dayKey(now);
   const started = startedModules(state, (id) => registry.roadmapLesson(id)?.moduleId);
   const due = deckCards('due', registry.cards, state.cards, started, today)?.length ?? 0;
-  const resolves = registry.allProblems.filter((p) => p.built && resolveDueToday(state.problems[p.id], today));
+  const resolves = dueResolves(registry.allProblems, state.problems, now);
   const last = lastOpened(state);
   const lastLesson = last?.kind === 'lesson' ? registry.lesson(last.id) : undefined;
   const lastProblem = last?.kind === 'problem' ? registry.problem(last.id) : undefined;
@@ -33,7 +27,9 @@ export function renderToday(ctx: PageContext, now: number): SafeHtml {
       <section class="card" data-testid="today-cards"><h2>🃏 Flashcards</h2>
         ${due > 0
           ? html`<p>${due} card${due === 1 ? ' is' : 's are'} due today.</p><p><a class="button primary" href="${href({ name: 'cards', deck: 'due' })}">Review cards</a></p>`
-          : html`<p>No cards are due. Come back tomorrow.</p>`}
+          : started.size === 0
+            ? html`<p>Open a lesson to start your cards.</p>`
+            : html`<p>No cards are due. Come back tomorrow.</p>`}
       </section>
       <section class="card" data-testid="today-resolve"><h2>🔁 Solve again</h2>
         ${resolves.length

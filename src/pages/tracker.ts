@@ -35,9 +35,10 @@ export function mountTracker(host: HTMLElement, problem: Problem, ctx: PageConte
       else if (p.nextResolveAt !== undefined) resolve = `Next re-solve: ${formatDay(dayKey(p.nextResolveAt))}. ${p.resolveSteps} of 3 done.`;
     }
     // Redrawing replaces the buttons. Keep keyboard focus on the same button.
-    const keep = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.testid : undefined;
+    const hadFocus = el.contains(document.activeElement);
+    const keep = hadFocus ? (document.activeElement as HTMLElement).dataset.testid : undefined;
     render(el, html`
-      <p class="tracker-level"><b data-testid="track-level">Level ${level} of 5: ${LEVEL_LABELS[level]}</b>
+      <p class="tracker-level" tabindex="-1"><b data-testid="track-level">Level ${level} of 5: ${LEVEL_LABELS[level]}</b>
         ${solved ? html` <span class="tag tag-done" data-testid="track-solved">✅ Solved</span>` : null}
         ${p?.marks.selfMarkedAlone !== undefined ? html` <span class="tag">Self-marked</span>` : null}
         ${p?.solvedElsewhere !== undefined ? html` <span class="tag">Solved elsewhere</span>` : null}</p>
@@ -49,7 +50,11 @@ export function mountTracker(host: HTMLElement, problem: Problem, ctx: PageConte
         <button type="button" data-testid="track-elsewhere" ${solved && !due ? 'disabled' : ''}>${due ? 'I re-solved it elsewhere' : 'I solved this elsewhere'}</button>
       </div>
       <p class="muted">Level 2 is set for you when Submit passes before you open the solutions. Level 5 comes by itself at level 4 once you master the pattern.</p>`);
-    if (keep) el.querySelector<HTMLElement>(`[data-testid="${keep}"]`)?.focus();
+    if (hadFocus) {
+      // A button that is now disabled cannot take focus, so the level line takes it instead.
+      const btn = keep ? el.querySelector<HTMLButtonElement>(`button[data-testid="${keep}"]`) : null;
+      (btn && !btn.disabled ? btn : el.querySelector<HTMLElement>('.tracker-level'))?.focus();
+    }
   };
 
   el.addEventListener('click', (e) => {

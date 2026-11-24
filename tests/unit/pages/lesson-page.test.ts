@@ -106,4 +106,17 @@ describe('lesson progress (Part 1b)', () => {
     expect(host.querySelector('[data-testid="lesson-status"]')!.textContent).toBe('✅ Lesson done. Your best score is 3 of 3.');
     dispose();
   });
+
+  it('moves focus to the first answer after "Try the quiz again"', () => {
+    const { host, dispose } = mount();
+    document.body.append(host);
+    answer(host, [0, 1, 1]);
+    const retry = host.querySelector<HTMLButtonElement>('[data-testid="quiz-retry"]')!;
+    retry.focus();
+    retry.click();
+    expect(retry.hidden).toBe(true);
+    expect(document.activeElement).toBe(host.querySelector('.quiz-option'));
+    dispose();
+    host.remove();
+  });
 });

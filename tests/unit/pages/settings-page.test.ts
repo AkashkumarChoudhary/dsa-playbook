@@ -29,7 +29,7 @@ describe('parseProgressFile', () => {
     expect(r.ok && r.state.lessons).toEqual({});
   });
   it('rejects other files', () => {
-    expect(parseProgressFile('{nope')).toEqual({ ok: false, message: 'This file is not valid JSON. Pick a file you exported from this site.' });
+    expect(parseProgressFile('{nope')).toEqual({ ok: false, message: 'This file cannot be read. Pick a file you exported from this site.' });
     expect(parseProgressFile('[1, 2]')).toEqual({ ok: false, message: 'This is not a DSA Playbook progress file.' });
     expect(parseProgressFile('{"version": 2}')).toEqual({ ok: false, message: 'This is not a DSA Playbook progress file.' });
   });
@@ -44,6 +44,25 @@ describe('settings page', () => {
     light.checked = true;
     light.dispatchEvent(new Event('change'));
     expect(store.get().settings).toEqual({ theme: 'light', updatedAt: NOW });
+  });
+
+  it('keeps the theme choice in step with the store, so "Follow my device" can be picked again', () => {
+    const store = memStore();
+    const { host, dispose } = mount(store);
+    document.body.append(host);
+    const radio = (v: string) => host.querySelector<HTMLInputElement>(`input[name="theme"][value="${v}"]`)!;
+    // The header button, an import or another tab changes the theme.
+    store.update((d) => { d.settings.theme = 'light'; });
+    expect(radio('light').checked).toBe(true);
+    expect(radio('system').checked).toBe(false);
+    radio('system').click();
+    expect(store.get().settings).toEqual({ theme: 'system', updatedAt: NOW });
+    expect(radio('system').checked).toBe(true);
+    const dark = radio('dark');
+    dispose();
+    store.update((d) => { d.settings.theme = 'dark'; });
+    expect(dark.checked).toBe(false);
+    host.remove();
   });
 
   it('exports the whole progress as a dated JSON file', () => {
@@ -69,7 +88,7 @@ describe('settings page', () => {
     expect(yes.status()).toBe('Progress imported.');
     expect(store.get().days).toEqual({ '2026-11-20': 5 });
     await yes.pick('not json');
-    expect(yes.status()).toContain('not valid JSON');
+    expect(yes.status()).toBe('This file cannot be read. Pick a file you exported from this site.');
   });
 
   it('says sync comes later', () => {

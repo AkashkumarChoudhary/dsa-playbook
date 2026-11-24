@@ -83,6 +83,21 @@ describe('top nav and module dots (Part 1b)', () => {
     expect(current()).toEqual([]);
   });
 
+  it('links to Settings from the header, outside the top nav', () => {
+    const root = document.createElement('div');
+    const shell = mountShell(root, registry, { current: () => 'dark', toggle: () => {} });
+    const gear = root.querySelector<HTMLAnchorElement>('.topbar-row a[aria-label="Settings"]')!;
+    expect(gear.getAttribute('href')).toBe('#/settings');
+    expect(gear.nextElementSibling).toBe(root.querySelector('[data-action="theme"]'));
+    expect(root.querySelectorAll('.topnav a')).toHaveLength(5);
+    expect(root.querySelector('.topnav a[href="#/settings"]')).toBeNull();
+    const current = () => [...root.querySelectorAll('.topnav a[aria-current="page"]')].map((a) => a.getAttribute('href'));
+    shell.setActive({ name: 'settings' });
+    expect(current()).toEqual([]);
+    shell.setActive({ name: 'roadmap' });
+    expect(current()).toEqual(['#/roadmap']);
+  });
+
   it('fills the module dot as progress grows', () => {
     const root = document.createElement('div');
     const store = memStore();
