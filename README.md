@@ -29,3 +29,9 @@ It uses Vite and TypeScript. There is no UI framework. The content is in `conten
 Read `CONTENT-RULES.md` before you write content. Read `AGENTS.md` before you use an AI agent on this repo.
 
 Design: `docs/superpowers/specs/2026-11-23-dsa-playbook-design.md`
+
+## Licence
+
+- Code: MIT. See `LICENSE`.
+- Learning content (`content/` and `docs/curriculum/`): CC BY-NC-SA 4.0. See `LICENSE-CONTENT.md`.
+- Third-party parts (TeaVM, OpenJDK javac, CodeMirror): see `THIRD_PARTY_NOTICES.md`.
