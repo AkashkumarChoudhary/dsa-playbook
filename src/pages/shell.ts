@@ -38,6 +38,16 @@ export function mountShell(root: HTMLElement, registry: Registry, theme: ThemeCo
     menuBtn.setAttribute('aria-expanded', String(open));
   };
   menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('nav-open')));
+  root.querySelector('a[href="#main"]')!.addEventListener('click', (e) => {
+    e.preventDefault();
+    (root.querySelector('main') as HTMLElement).focus();
+  });
+  root.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Escape' && document.body.classList.contains('nav-open')) {
+      setMenu(false);
+      menuBtn.focus();
+    }
+  });
   root.querySelector('[data-action="theme"]')!.addEventListener('click', () => theme.toggle());
   root.querySelector('.sidebar')!.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('a')) setMenu(false);

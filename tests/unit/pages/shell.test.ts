@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { buildRegistry } from '../../../src/core/registry';
 import type { Module } from '../../../src/content-types';
 import { mountShell } from '../../../src/pages/shell';
@@ -9,6 +9,7 @@ const m: Module = { id: 'foundations', order: 1, level: 'basics', icon: '🧱', 
 const registry = buildRegistry({ modules: [m], lessons: [], problems: [], traces: [] });
 
 describe('shell', () => {
+  beforeEach(() => document.body.classList.remove('nav-open'));
   it('renders nav, toggles theme and marks the active link', () => {
     const root = document.createElement('div');
     let toggled = 0;
@@ -21,6 +22,29 @@ describe('shell', () => {
     (root.querySelector('[data-action="menu"]') as HTMLButtonElement).click();
     expect(document.body.classList.contains('nav-open')).toBe(true);
     expect(shell.outlet.tagName).toBe('MAIN');
+  });
+  it('skip link keeps the hash and focuses the outlet', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const shell = mountShell(root, registry, { current: () => 'dark', toggle: () => {} });
+    const before = location.hash;
+    (root.querySelector('a[href="#main"]') as HTMLAnchorElement).click();
+    expect(location.hash).toBe(before);
+    expect(document.activeElement).toBe(shell.outlet);
+    root.remove();
+  });
+  it('Escape closes the menu and syncs aria-expanded', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    mountShell(root, registry, { current: () => 'dark', toggle: () => {} });
+    const btn = root.querySelector('[data-action="menu"]') as HTMLButtonElement;
+    btn.click();
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    root.querySelector('.sidebar')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.body.classList.contains('nav-open')).toBe(false);
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(btn);
+    root.remove();
   });
   it('home and module pages list modules and outcomes', () => {
     expect(renderHome(registry).__html).toContain('Foundations');

@@ -21,3 +21,4 @@ table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
 th, td { border: 1px solid var(--line); padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
 th { background: var(--bg-2); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.visually-hidden:focus { position: fixed; left: 0.5rem; top: 0.5rem; width: auto; height: auto; clip: auto; overflow: visible; z-index: 100; padding: 0.5rem 0.75rem; background: var(--accent); color: var(--on-accent); border-radius: 8px; }
