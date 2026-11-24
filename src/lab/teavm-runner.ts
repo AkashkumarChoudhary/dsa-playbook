@@ -60,12 +60,25 @@ export function mapCompileErrors(diags: TeaVMDiagnostic[], spec: ProblemSpec): {
 
 type Compiled = Extract<CompileWorkerResponse, { type: 'compiled' }>;
 
+interface RunToken {
+  stopped: boolean;
+  onStop: (() => void) | null;
+}
+
+const COMPILER_PROBLEM = 'The Java compiler hit a problem. Reload the page and try again.';
+
+function failedCompile(id: number, message: string): Compiled {
+  return { type: 'compiled', id, ok: false, diagnostics: [{ type: 'teavm', severity: 'error', fileName: '', lineNumber: 0, message }] };
+}
+
 export class TeaVMRunner implements JavaRunner {
   private compileWorker: WorkerLike | null = null;
+  private compilerLoaded = false;
   private readyPromise: Promise<void> | null = null;
   private unavailable: string | null = null;
   private nextId = 1;
   private pending = new Map<number, (m: Compiled) => void>();
+  private current: RunToken | null = null;
   private stopActive: (() => void) | null = null;
   private readonly deps: TeaVMRunnerDeps;
 
@@ -87,10 +100,13 @@ export class TeaVMRunner implements JavaRunner {
     return new Promise((resolve) => {
       const w = this.deps.createCompileWorker();
       this.compileWorker = w;
+      this.compilerLoaded = false;
       w.onmessage = (ev) => {
         const m = ev.data as CompileWorkerResponse;
-        if (m.type === 'ready') resolve();
-        else if (m.type === 'loadError') {
+        if (m.type === 'ready') {
+          this.compilerLoaded = true;
+          resolve();
+        } else if (m.type === 'loadError') {
           this.unavailable = `Java could not load: ${m.message}`;
           resolve();
         } else {
@@ -102,69 +118,114 @@ export class TeaVMRunner implements JavaRunner {
         }
       };
       w.onerror = () => {
-        this.unavailable = 'Java could not load. Check your connection and reload the page.';
-        resolve();
+        if (this.compileWorker !== w) return;
+        if (this.compilerLoaded) {
+          this.resetCompileWorker(w, COMPILER_PROBLEM);
+        } else {
+          this.unavailable = 'Java could not load. Check your connection and reload the page.';
+          resolve();
+        }
       };
       w.postMessage({ type: 'init', assetBase: this.deps.assetBase } satisfies CompileWorkerRequest);
     });
   }
 
+  /** Throws away a compile worker and fails every compile waiting on it. The next run builds a fresh one. */
+  private resetCompileWorker(w: WorkerLike, message: string): void {
+    w.terminate();
+    if (this.compileWorker !== w) return;
+    this.compileWorker = null;
+    this.compilerLoaded = false;
+    this.readyPromise = null;
+    const waiting = [...this.pending.entries()];
+    this.pending.clear();
+    for (const [id, cb] of waiting) cb(failedCompile(id, message));
+  }
+
+  private stopped(req: RunRequest, planned: PlannedTest[]): RunResult {
+    return { kind: 'stopped', results: buildResults(req.spec, planned, [], NOT_FINISHED_STOPPED), stdout: '' };
+  }
+
   async run(req: RunRequest): Promise<RunResult> {
-    await this.ready();
-    if (this.unavailable || !this.compileWorker) return { kind: 'runnerUnavailable', reason: this.unavailable ?? UNSUPPORTED_BROWSER };
+    this.stop();
+    const token: RunToken = { stopped: false, onStop: null };
+    this.current = token;
     const planned = planTests(req.spec, req.mode, req.extraTests);
-    const harness = generateHarness(req.spec, planned);
-    const compiled = await this.compile([
-      { name: 'Solution.java', content: req.code },
-      { name: 'Main.java', content: harness },
-    ]);
-    if (compiled === 'timeout') {
-      this.compileWorker?.terminate();
-      this.compileWorker = null;
-      this.readyPromise = null;
-      return { kind: 'runnerUnavailable', reason: 'The Java compiler stopped responding. Reload the page and try again.' };
+    try {
+      await this.ready();
+      if (token.stopped) return this.stopped(req, planned);
+      const worker = this.compileWorker;
+      if (this.unavailable || !worker) return { kind: 'runnerUnavailable', reason: this.unavailable ?? UNSUPPORTED_BROWSER };
+      const harness = generateHarness(req.spec, planned);
+      const compiled = await this.compile(worker, token, [
+        { name: 'Solution.java', content: req.code },
+        { name: 'Main.java', content: harness },
+      ]);
+      if (compiled === 'stopped' || token.stopped) return this.stopped(req, planned);
+      if (compiled === 'timeout') {
+        this.resetCompileWorker(worker, COMPILER_PROBLEM);
+        return { kind: 'runnerUnavailable', reason: 'The Java compiler stopped responding. Reload the page and try again.' };
+      }
+      if (!compiled.ok || !compiled.wasm) {
+        return { kind: 'compileError', errors: mapCompileErrors(compiled.diagnostics.filter((d) => d.severity === 'error'), req.spec) };
+      }
+      return await this.execute(compiled.wasm, req, planned, token);
+    } finally {
+      if (this.current === token) this.current = null;
     }
-    if (!compiled.ok || !compiled.wasm) {
-      return { kind: 'compileError', errors: mapCompileErrors(compiled.diagnostics.filter((d) => d.severity === 'error'), req.spec) };
-    }
-    return this.execute(compiled.wasm, req, planned);
   }
 
   stop(): void {
+    const token = this.current;
+    if (!token) return;
+    token.stopped = true;
+    token.onStop?.();
     this.stopActive?.();
   }
 
-  private compile(files: { name: string; content: string }[]): Promise<Compiled | 'timeout'> {
+  private compile(worker: WorkerLike, token: RunToken, files: { name: string; content: string }[]): Promise<Compiled | 'timeout' | 'stopped'> {
     const id = this.nextId++;
     return new Promise((resolve) => {
       const timer = this.deps.setTimeout(() => {
         this.pending.delete(id);
+        token.onStop = null;
         resolve('timeout');
       }, COMPILE_TIMEOUT_MS);
       this.pending.set(id, (m) => {
         this.deps.clearTimeout(timer);
+        token.onStop = null;
         resolve(m);
       });
-      this.compileWorker?.postMessage({ type: 'compile', id, files } satisfies CompileWorkerRequest);
+      token.onStop = () => {
+        this.deps.clearTimeout(timer);
+        this.pending.delete(id);
+        token.onStop = null;
+        resolve('stopped');
+      };
+      worker.postMessage({ type: 'compile', id, files } satisfies CompileWorkerRequest);
     });
   }
 
-  private execute(wasm: Int8Array, req: RunRequest, planned: PlannedTest[]): Promise<RunResult> {
+  private execute(wasm: Int8Array, req: RunRequest, planned: PlannedTest[], token: RunToken): Promise<RunResult> {
     return new Promise((resolve) => {
       const worker = this.deps.createRunWorker();
       const lines: string[] = [];
       let settled = false;
       let timer = 0;
+      const mine = () => {
+        if (this.stopActive === stop) this.stopActive = null;
+      };
       const finish = (kind: 'tests' | 'timeout' | 'stopped', crash?: string) => {
         if (settled) return;
         settled = true;
         this.deps.clearTimeout(timer);
         worker.terminate();
-        this.stopActive = null;
+        mine();
         const parsed = parseHarnessOutput(lines, planned.map((p) => p.id));
         const reason = kind === 'timeout' ? NOT_FINISHED_TIMEOUT : kind === 'stopped' ? NOT_FINISHED_STOPPED : (crash ?? 'The program stopped before this test.');
         resolve({ kind, results: buildResults(req.spec, planned, parsed.tests, reason), stdout: parsed.stray });
       };
+      const stop = () => finish('stopped');
       timer = this.deps.setTimeout(() => finish('timeout'), req.timeLimitMs);
       worker.onmessage = (ev) => {
         const m = ev.data as RunWorkerMessage;
@@ -173,7 +234,11 @@ export class TeaVMRunner implements JavaRunner {
         else finish('tests', `The program crashed: ${m.message}`);
       };
       worker.onerror = () => finish('tests', 'The program crashed before it finished.');
-      this.stopActive = () => finish('stopped');
+      this.stopActive = stop;
+      if (token.stopped) {
+        stop();
+        return;
+      }
       const msg: RunWorkerRequest = { type: 'run', wasm, runtimeUrl: `${this.deps.assetBase}compiler.wasm-runtime.js` };
       worker.postMessage(msg, [wasm.buffer as ArrayBuffer]);
     });

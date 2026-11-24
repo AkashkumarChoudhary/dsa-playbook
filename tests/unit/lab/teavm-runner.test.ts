@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ProblemSpec } from '../../../src/content-types';
 import type { CompileWorkerRequest, RunWorkerRequest } from '../../../src/lab/teavm-protocol';
-import { mapCompileErrors, NOT_FINISHED_TIMEOUT, signature, TeaVMRunner, UNSUPPORTED_BROWSER, type TeaVMRunnerDeps, type WorkerLike } from '../../../src/lab/teavm-runner';
+import { mapCompileErrors, NOT_FINISHED_STOPPED, NOT_FINISHED_TIMEOUT, signature, TeaVMRunner, UNSUPPORTED_BROWSER, type TeaVMRunnerDeps, type WorkerLike } from '../../../src/lab/teavm-runner';
 
 const spec: ProblemSpec = {
   className: 'Solution', method: 'containsDuplicate', params: [{ name: 'nums', type: 'int[]' }], returns: 'boolean', compare: 'exact',
@@ -79,6 +79,69 @@ describe('TeaVMRunner', () => {
   it('says when the browser cannot run Java', async () => {
     const { d } = deps({ supportsWasmGC: () => false });
     expect(await new TeaVMRunner(d).run(req)).toEqual({ kind: 'runnerUnavailable', reason: UNSUPPORTED_BROWSER });
+  });
+});
+
+describe('TeaVMRunner stop, overlap and failure', () => {
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const readyOnly = (m: CompileWorkerRequest, w: FakeWorker) => { if (m.type === 'init') w.emit({ type: 'ready' }); };
+
+  it('stops during compile without making a run worker', async () => {
+    const { d, runWorkers } = deps({ compile: readyOnly });
+    const runner = new TeaVMRunner(d);
+    const p = runner.run(req);
+    await tick();
+    runner.stop();
+    const r = await p;
+    expect(r.kind).toBe('stopped');
+    if (r.kind === 'stopped') expect(r.results[0]!.error).toBe(NOT_FINISHED_STOPPED);
+    expect(runWorkers.length).toBe(0);
+  });
+
+  it('a second run stops the first, and stop() then stops the second', async () => {
+    const { d } = deps({ run: () => {} });
+    const runner = new TeaVMRunner(d);
+    const a = runner.run(req);
+    await tick();
+    await tick();
+    const b = runner.run(req);
+    expect((await a).kind).toBe('stopped');
+    await tick();
+    await tick();
+    runner.stop();
+    expect((await b).kind).toBe('stopped');
+  });
+
+  it('survives a compiler crash after load', async () => {
+    let first = true;
+    const { d } = deps({ compile: (m, w) => {
+      if (m.type === 'init') w.emit({ type: 'ready' });
+      else if (first) { first = false; w.onerror?.({} as Event); }
+      else w.emit({ type: 'compiled', id: m.id, ok: true, diagnostics: [], wasm: new Int8Array([1]) });
+    } });
+    const runner = new TeaVMRunner(d);
+    const r = await runner.run(req);
+    expect(r.kind).toBe('compileError');
+    expect((await runner.run(req)).kind).toBe('tests');
+  });
+
+  it('keeps finished results when it times out', async () => {
+    const two: ProblemSpec = { ...spec, samples: [...spec.samples, { id: 's2', args: [[1, 2]], expected: false }] };
+    const { d, timers } = deps({ run: (_m, w) => {
+      w.emit({ type: 'line', text: '@@BEGIN s1' });
+      w.emit({ type: 'line', text: '@@END {"id":"s1","ok":true,"ms":1,"actual":true}' });
+      w.emit({ type: 'line', text: '@@BEGIN s2' });
+    } });
+    const p = new TeaVMRunner(d).run({ ...req, spec: two });
+    await tick();
+    await tick();
+    timers.forEach((fn) => fn());
+    const r = await p;
+    expect(r.kind).toBe('timeout');
+    if (r.kind === 'timeout') {
+      expect(r.results[0]).toMatchObject({ id: 's1', pass: true, actual: 'true' });
+      expect(r.results[1]!.error).toBe(NOT_FINISHED_TIMEOUT);
+    }
   });
 });
 

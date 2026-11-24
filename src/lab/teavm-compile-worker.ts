@@ -41,32 +41,44 @@ async function init(assetBase: string): Promise<void> {
   compiler = c;
 }
 
-ctx.onmessage = async (e) => {
-  const msg = e.data;
-  if (msg.type === 'init') {
-    try {
-      await init(msg.assetBase);
-      ctx.postMessage({ type: 'ready' });
-    } catch (err) {
-      ctx.postMessage({ type: 'loadError', message: err instanceof Error ? err.message : String(err) });
-    }
-    return;
-  }
+let queue: Promise<void> = Promise.resolve();
+
+async function compileOne(msg: Extract<CompileWorkerRequest, { type: 'compile' }>): Promise<void> {
   if (!compiler) {
     ctx.postMessage({ type: 'compiled', id: msg.id, ok: false, diagnostics: [{ type: 'teavm', severity: 'error', fileName: '', lineNumber: 0, message: 'The Java compiler is not loaded.' }] });
     return;
   }
-  diags = [];
-  compiler.clearSourceFiles();
-  compiler.clearOutputFiles();
-  for (const f of msg.files) compiler.addSourceFile(f.name, f.content);
-  let ok = compiler.compile();
-  let wasm: Int8Array | undefined;
-  if (ok) {
-    ok = await compiler.generateWebAssembly({ outputName: 'app', mainClass: 'Main' });
-    const out = ok ? compiler.getWebAssemblyOutputFile('app.wasm') : null;
-    if (out) wasm = out.slice();
-    else ok = false;
+  try {
+    diags = [];
+    compiler.clearSourceFiles();
+    compiler.clearOutputFiles();
+    for (const f of msg.files) compiler.addSourceFile(f.name, f.content);
+    let ok = compiler.compile();
+    let wasm: Int8Array | undefined;
+    if (ok) {
+      ok = await compiler.generateWebAssembly({ outputName: 'app', mainClass: 'Main' });
+      const out = ok ? compiler.getWebAssemblyOutputFile('app.wasm') : null;
+      if (out) wasm = out.slice();
+      else ok = false;
+    }
+    ctx.postMessage({ type: 'compiled', id: msg.id, ok, diagnostics: diags, wasm }, wasm ? [wasm.buffer as ArrayBuffer] : []);
+  } catch {
+    ctx.postMessage({ type: 'compiled', id: msg.id, ok: false, diagnostics: [{ type: 'teavm', severity: 'error', fileName: '', lineNumber: 0, message: 'The Java compiler hit a problem. Try simpler code.' }] });
   }
-  ctx.postMessage({ type: 'compiled', id: msg.id, ok, diagnostics: diags, wasm }, wasm ? [wasm.buffer as ArrayBuffer] : []);
+}
+
+ctx.onmessage = (e) => {
+  const msg = e.data;
+  if (msg.type === 'init') {
+    void (async () => {
+      try {
+        await init(msg.assetBase);
+        ctx.postMessage({ type: 'ready' });
+      } catch (err) {
+        ctx.postMessage({ type: 'loadError', message: err instanceof Error ? err.message : String(err) });
+      }
+    })();
+    return;
+  }
+  queue = queue.then(() => compileOne(msg));
 };
