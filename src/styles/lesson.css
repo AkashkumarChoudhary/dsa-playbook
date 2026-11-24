@@ -1,1 +1,21 @@
-/* filled in Task 18 */
+.lesson .lead { font-size: 1.1rem; }
+.lesson section { scroll-margin-top: 4rem; }
+.picture-steps { list-style: none; padding: 0; counter-reset: step; display: grid; gap: 0.6rem; margin: 0 0 1rem; }
+.picture-steps li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 0.6rem; align-items: start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.8rem; }
+.picture-steps p { margin: 0.1rem 0 0; }
+.step-icon { font-size: 1.6rem; line-height: 1; }
+details.deep { margin-top: 1rem; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 1rem; }
+.clues { display: grid; gap: 0.5rem; margin: 0 0 1rem; }
+.clues > div { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 0.5rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.75rem; }
+.clues dt { font-weight: 700; }
+.clues dd { margin: 0; }
+@media (max-width: 520px) { .clues > div { grid-template-columns: minmax(0, 1fr); } }
+.callout.trap { border-left-color: var(--bad); margin-top: 0.5rem; }
+.quiz { display: grid; gap: 0.75rem; }
+.quiz-question { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 1rem 0.8rem; display: grid; gap: 0.4rem; }
+.quiz-question legend { font-weight: 600; padding: 0 0.3rem; }
+.quiz-option { text-align: left; }
+.quiz-option.right { border-color: var(--ok); outline: 2px solid var(--ok); }
+.quiz-option.wrong { border-color: var(--bad); outline: 2px solid var(--bad); }
+.quiz-feedback { margin: 0.2rem 0 0; }
+.quiz-score { font-weight: 700; }

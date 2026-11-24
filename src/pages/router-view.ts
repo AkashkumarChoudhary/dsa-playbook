@@ -5,6 +5,7 @@ import type { Store } from '../core/store';
 import type { createEditor } from '../lab/editor';
 import type { JavaRunner } from '../lab/runner';
 import { renderHome } from './home';
+import { mountLessonPage } from './lesson-page';
 import { renderModule } from './module-page';
 import { renderNotFound } from './not-found';
 
@@ -28,6 +29,13 @@ export function renderRoute(route: Route, outlet: HTMLElement, ctx: PageContext)
     if (m) {
       render(outlet, renderModule(m, ctx.registry));
       return { title: `${m.title} · DSA Playbook`, cleanup: noop };
+    }
+  }
+  if (route.name === 'lesson') {
+    const lesson = ctx.registry.lesson(route.id);
+    if (lesson) {
+      const cleanup = mountLessonPage(outlet, lesson, ctx);
+      return { title: `${lesson.title} · DSA Playbook`, cleanup };
     }
   }
   render(outlet, renderNotFound());
