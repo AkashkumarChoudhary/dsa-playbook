@@ -181,6 +181,9 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
 
   return {
     loadCode(src) {
+      const current = editor.getValue().trim();
+      const safe = current === '' || current === problem.starter.trim() || current === src.trim();
+      if (!safe && !confirmFn('Replace your code with this solution? Your code will be lost.')) return;
       editor.setValue(src);
       el.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     },

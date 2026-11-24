@@ -125,4 +125,32 @@ describe('mountLab', () => {
     expect(host.querySelector('[data-testid="lab-status"]')!.textContent).toContain('Stopped');
     expect((host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it('asks before Load into lab replaces custom code, and keeps it on cancel', () => {
+    const host = document.createElement('div');
+    const ed = fakeEditor();
+    const store = memStore();
+    const confirm = vi.fn(() => false);
+    const lab = mountLab(host, problem, { runner: fakeRunner({ kind: 'tests', stdout: '', results: [] }), store, makeEditor: ed.make, confirm });
+    ed.type('my own code');
+    const before = store.get().code[problem.id]?.updatedAt;
+    const savedBefore = JSON.stringify(store.get().code);
+    lab.loadCode('class Solution { /* solution */ }');
+    expect(confirm).toHaveBeenCalledWith('Replace your code with this solution? Your code will be lost.');
+    expect(ed.value).toBe('my own code');
+    expect(JSON.stringify(store.get().code)).toBe(savedBefore);
+    expect(store.get().code[problem.id]?.updatedAt).toBe(before);
+    lab.dispose();
+  });
+
+  it('replaces the starter without asking', () => {
+    const host = document.createElement('div');
+    const ed = fakeEditor();
+    const confirm = vi.fn(() => false);
+    const lab = mountLab(host, problem, { runner: fakeRunner({ kind: 'tests', stdout: '', results: [] }), store: memStore(), makeEditor: ed.make, confirm });
+    lab.loadCode('class Solution { /* solution */ }');
+    expect(confirm).not.toHaveBeenCalled();
+    expect(ed.value).toBe('class Solution { /* solution */ }');
+    lab.dispose();
+  });
 });
