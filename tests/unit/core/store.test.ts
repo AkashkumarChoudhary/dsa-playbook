@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { browserStorage, createStore, defaultState, normalize, STORAGE_KEY, type KeyValueStorage, type StorageEventSource } from '../../../src/core/store';
+import { browserStorage, createStore, defaultState, normalize, STORAGE_KEY, trimDrills, type KeyValueStorage, type StorageEventSource } from '../../../src/core/store';
 
 function memory(initial: Record<string, string> = {}): KeyValueStorage & { data: Record<string, string> } {
   const data = { ...initial };
@@ -129,5 +129,78 @@ describe('two tabs and newer fields', () => {
     fire(STORAGE_KEY);
     expect(store.get().settings.theme).toBe('light');
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('progress fields (Part 1b)', () => {
+  it('starts empty', () => {
+    expect(defaultState()).toMatchObject({ lessons: {}, problems: {}, cards: {}, drills: {}, days: {} });
+  });
+
+  it('keeps valid progress and drops bad entries', () => {
+    const s = normalize({
+      lessons: { a: { openedAt: 1, bestScore: 2, total: 3, passedAt: 4, updatedAt: 4 }, b: { openedAt: 'x', bestScore: 0, total: 3, updatedAt: 1 } },
+      problems: {
+        p: { marks: { understood: 5, canExplain: 'no', wat: 1 }, solvedAt: 6, resolveSteps: 2, nextResolveAt: 9, revealedAt: 3, updatedAt: 6 },
+        q: { marks: {}, resolveSteps: 7, updatedAt: 1 },
+        r: { marks: {} },
+      },
+      cards: {
+        'c:hook': { box: 3, dueDay: '2026-11-30', again: 1, lastDay: '2026-11-24', updatedAt: 2 },
+        'c:spot': { box: 6, dueDay: '2026-11-30', again: 0, lastDay: '2026-11-24', updatedAt: 2 },
+        'c:edges': { box: 1, dueDay: 'tomorrow', again: 0, lastDay: '2026-11-24', updatedAt: 2 },
+      },
+      drills: { a1: { itemId: 'i', patternIds: ['hashing'], correct: true, at: 10 }, a2: { itemId: 'i', patternIds: [1], correct: true, at: 11 } },
+      days: { '2026-11-24': 3, '2026-11-25': 0, 'not-a-day': 2 },
+    });
+    expect(s.lessons).toEqual({ a: { openedAt: 1, bestScore: 2, total: 3, passedAt: 4, updatedAt: 4 } });
+    expect(s.problems.p).toEqual({ marks: { understood: 5 }, solvedAt: 6, resolveSteps: 2, nextResolveAt: 9, revealedAt: 3, updatedAt: 6 });
+    expect(s.problems.q?.resolveSteps).toBe(0);
+    expect(s.problems.r).toBeUndefined();
+    expect(Object.keys(s.cards)).toEqual(['c:hook']);
+    expect(Object.keys(s.drills)).toEqual(['a1']);
+    expect(s.days).toEqual({ '2026-11-24': 3 });
+  });
+
+  it('never lets a stored "__proto__" key change the prototype', () => {
+    const s = normalize(JSON.parse('{"code":{"__proto__":{"source":"x","updatedAt":1}},"lessons":{"__proto__":{"openedAt":1,"bestScore":0,"total":3,"updatedAt":1}}}'));
+    expect(Object.getPrototypeOf(s.code)).toBe(Object.prototype);
+    expect(Object.keys(s.code)).toEqual([]);
+    expect(Object.keys(s.lessons)).toEqual([]);
+  });
+
+  it('keeps only the newest 1,000 drill attempts', () => {
+    const drills: Record<string, unknown> = {};
+    for (let i = 0; i < 1005; i++) drills[`a${i}`] = { itemId: 'i', patternIds: [], correct: true, at: i };
+    const s = normalize({ drills });
+    expect(Object.keys(s.drills)).toHaveLength(1000);
+    expect(s.drills.a4).toBeUndefined();
+    expect(s.drills.a5).toBeDefined();
+    const one = { x: { itemId: 'i', patternIds: [], correct: false, at: 1 } };
+    expect(trimDrills(one, 5)).toBe(one);
+  });
+
+  it('keeps drill attempts written by two tabs', () => {
+    const storage = memory();
+    const a = createStore(storage);
+    const b = createStore(storage);
+    a.update((s) => { s.drills.x = { itemId: 'i', patternIds: ['p'], correct: true, at: 1 }; });
+    b.update((s) => { s.drills.y = { itemId: 'j', patternIds: ['p'], correct: false, at: 2 }; });
+    expect(Object.keys(JSON.parse(storage.data[STORAGE_KEY]!).drills).sort()).toEqual(['x', 'y']);
+  });
+});
+
+describe('corrupt data (Part 1a follow-up)', () => {
+  it('backs up the same corrupt value only once', () => {
+    // Each backup key holds the time. A new time per call makes a second backup visible.
+    let t = 0;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => ++t);
+    const storage = memory({ [STORAGE_KEY]: '{not json' });
+    const store = createStore(storage);
+    store.update((s) => { s.settings.theme = 'light'; });
+    clock.mockRestore();
+    const backups = Object.keys(storage.data).filter((k) => k.startsWith('dsa:corrupt:'));
+    expect(backups).toHaveLength(1);
+    expect(storage.data[backups[0]!]).toBe('{not json');
   });
 });
