@@ -1,0 +1,54 @@
+.player { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 1rem; display: grid; gap: 0.75rem; outline: none; }
+.player:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.player-head { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; align-items: baseline; }
+.player-head h4 { margin: 0; font-size: 1rem; }
+.player-count { color: var(--muted); font-size: 0.875rem; }
+.player-stage { display: grid; gap: 1rem; overflow-x: auto; padding-bottom: 0.25rem; }
+.player-side { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .player-side { grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); } }
+.player-note { margin: 0; padding: 0.6rem 0.8rem; border-left: 4px solid var(--accent); background: var(--bg-2); border-radius: 6px; min-height: 2.6rem; }
+.player-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.player-controls .speed { margin-left: auto; display: flex; gap: 0.25rem; align-items: center; color: var(--muted); font-size: 0.875rem; }
+.player-controls button[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.player-input { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; font-size: 0.875rem; }
+.player-input label { display: grid; gap: 0.2rem; }
+.player-input input { min-width: 12rem; }
+.player-input .error { color: var(--bad); flex-basis: 100%; margin: 0; }
+.viz-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+
+.piece { margin: 0; }
+.piece figcaption { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
+.arr-track { --cell: 2.75rem; position: relative; width: calc(var(--n) * var(--cell)); }
+.arr-cells { display: grid; grid-template-columns: repeat(var(--n), var(--cell)); }
+.cell { height: var(--cell); border: 1px solid var(--line); display: grid; place-items: center; position: relative; font-family: var(--mono); font-weight: 600; background: var(--bg-2); transition: background-color var(--dur), color var(--dur); }
+.cell .idx { position: absolute; top: -1.15rem; font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+.cell.mark-current { background: var(--mark-current); color: #fff; }
+.cell.mark-discarded { background: var(--mark-discarded); color: #fff; opacity: 0.75; }
+.cell.mark-range { background: var(--mark-range); color: #fff; }
+.cell.mark-answer { background: var(--mark-answer); color: #fff; }
+.cell.mark-conflict { background: var(--mark-conflict); color: #fff; }
+.arr-ptrs { position: relative; height: calc(var(--ptr-rows, 1) * 1.6rem + 0.3rem); }
+.ptr { position: absolute; top: calc(var(--row) * 1.6rem); left: 0; width: var(--cell); text-align: center; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); transform: translateX(calc(var(--i) * var(--cell))); transition: transform var(--dur) ease; line-height: 1; }
+.ptr b { display: block; }
+.ptr-arrow { display: block; font-size: 0.7rem; }
+
+.hash-box { display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 2.4rem; padding: 0.5rem; border: 1px dashed var(--line); border-radius: 8px; background: var(--bg-2); }
+.hash-empty { color: var(--muted); font-style: italic; font-size: 0.875rem; }
+.chip { font-family: var(--mono); padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid var(--line); background: var(--card); transition: background-color var(--dur), color var(--dur); }
+.chip.enter { animation: chip-in var(--dur) ease; }
+.chip.mark-current { background: var(--mark-current); color: #fff; border-color: transparent; }
+.chip.mark-answer { background: var(--mark-answer); color: #fff; border-color: transparent; }
+.chip.mark-conflict { background: var(--mark-conflict); color: #fff; border-color: transparent; }
+@keyframes chip-in { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+
+.vars { margin: 0; display: grid; gap: 0.25rem; align-content: start; font-family: var(--mono); font-size: 0.875rem; }
+.var { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 6px; background: var(--bg-2); }
+.var dt { color: var(--muted); }
+.var dd { margin: 0; font-weight: 600; }
+.var.changed { animation: var-flash calc(var(--dur) * 3) ease; outline: 1px solid var(--accent); }
+@keyframes var-flash { from { background: var(--accent); color: var(--on-accent); } to { background: var(--bg-2); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr, .cell, .chip { transition: none; }
+  .chip.enter, .var.changed { animation: none; }
+}
