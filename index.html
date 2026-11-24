@@ -6,8 +6,20 @@
     <title>DSA Playbook</title>
     <meta name="description" content="Learn DSA from zero to interview-ready. Spot the pattern, watch the dry run, write Java." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>" />
+    <script>
+      // Set the theme before the first paint, so light-theme users never see a dark flash.
+      (function () {
+        var t;
+        try { t = JSON.parse(localStorage.getItem('dsa:v1') || '{}').settings.theme; } catch (e) {}
+        if (t !== 'dark' && t !== 'light') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
   </head>
   <body>
+    <noscript>This site needs JavaScript. Please turn it on, then load the page again.</noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -5,6 +5,12 @@ export interface Piece<V> {
   update(view: V): void;
 }
 
+/** Box size that fits the longest value. rem (not em) keeps it the same in cells and in the smaller pointer text. */
+function cellSize(values: ArrayView['values']): string {
+  const chars = Math.max(1, ...values.map((v) => String(v).length));
+  return `max(2.75rem, calc(${chars} * 0.65rem + 1rem))`;
+}
+
 export function createArrayPiece(): Piece<ArrayView> {
   const el = document.createElement('figure');
   el.className = 'piece piece-array';
@@ -41,6 +47,8 @@ export function createArrayPiece(): Piece<ArrayView> {
     update(view) {
       caption.textContent = view.label;
       if (view.values.length !== cells.length) rebuild(view.values.length);
+      // Long numbers need wider boxes. Pointers read the same --cell, so they still line up.
+      track.style.setProperty('--cell', cellSize(view.values));
       view.values.forEach((v, i) => {
         const c = cells[i] as HTMLElement;
         (c.querySelector('.val') as HTMLElement).textContent = String(v);

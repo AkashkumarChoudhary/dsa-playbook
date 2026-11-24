@@ -26,7 +26,7 @@ export const containsDuplicateBrute: TraceDef<Input> = {
     const arr = (pointers: ArrayView['pointers'], marks: ArrayView['marks']): ArrayView => ({ kind: 'array', id: 'nums', label: 'nums', values: nums, pointers, marks });
     let checks = 0;
     const pairs = (nums.length * (nums.length - 1)) / 2;
-    rec.step({ line: 'outer', vars: { i: '-', j: '-', checks: '0' }, views: [arr([], [])], note: `We will compare every pair. There are ${plural(nums.length, 'number')}.` });
+    rec.step({ line: 'outer', vars: { i: '-', j: '-', checks: '0' }, views: [arr([], [])], note: `We will compare every pair. There ${nums.length === 1 ? 'is' : 'are'} ${plural(nums.length, 'number')}.` });
     for (let i = 0; i < nums.length; i++) {
       for (let j = i + 1; j < nums.length; j++) {
         checks++;
@@ -49,7 +49,7 @@ export const containsDuplicateBrute: TraceDef<Input> = {
         }
       }
     }
-    rec.step({ line: 'none', vars: { i: '-', j: '-', checks: String(checks) }, views: [arr([], [])], note: `No pair matched. ${plural(nums.length, 'number')} make ${plural(pairs, 'pair')}. The work grows fast as the list grows. Return false.` });
+    rec.step({ line: 'none', vars: { i: '-', j: '-', checks: String(checks) }, views: [arr([], [])], note: `No pair matched. ${plural(nums.length, 'number')} ${nums.length === 1 ? 'makes' : 'make'} ${plural(pairs, 'pair')}. The work grows fast as the list grows. Return false.` });
     return rec.finish(false);
   },
 };

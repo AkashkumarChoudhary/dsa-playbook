@@ -73,7 +73,8 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
   });
   controls.append(speedWrap);
 
-  const form = document.createElement('div');
+  // A real form, so Enter in a field runs the input.
+  const form = document.createElement('form');
   form.className = 'player-input';
   const inputs = new Map<string, HTMLInputElement>();
   const initialValues = opts.trace.formatInput(opts.input);
@@ -89,12 +90,14 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
     inputs.set(f.name, input);
   }
   const runInput = button('run-input', 'Run with your input', 'Run my input');
+  runInput.type = 'submit';
   const error = document.createElement('p');
   error.className = 'error';
   error.setAttribute('role', 'status');
   if (opts.trace.inputFields.length > 0) form.append(runInput, error);
 
-  el.append(head, stage, side, note, controls);
+  // Picture, step sentence and buttons sit together, so they fit on one phone screen. Variables and code come after.
+  el.append(head, stage, note, controls, side);
   if (opts.trace.inputFields.length > 0) el.append(form);
   host.append(el);
 
@@ -146,14 +149,16 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
   });
 
   el.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
-    userControlled = true;
-    if (e.key === 'ArrowRight') { player.next(); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft') { player.back(); e.preventDefault(); }
-    else if (e.key === ' ') { player.toggle(); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { userControlled = true; player.next(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { userControlled = true; player.back(); e.preventDefault(); }
+    // Space on a button must press that button, so play and pause only when the player itself has focus.
+    else if (e.key === ' ' && e.target === el) { userControlled = true; player.toggle(); e.preventDefault(); }
   });
 
-  runInput.addEventListener('click', () => {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
     userControlled = true;
     const fields: Record<string, string> = {};
     for (const [name, input] of inputs) fields[name] = input.value;

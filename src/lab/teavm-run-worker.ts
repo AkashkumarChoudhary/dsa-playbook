@@ -1,3 +1,4 @@
+import { createOutputLimit } from './output-limit';
 import type { RunWorkerMessage, RunWorkerRequest } from './teavm-protocol';
 
 const ctx = self as unknown as {
@@ -5,12 +6,18 @@ const ctx = self as unknown as {
   onmessage: ((e: MessageEvent<RunWorkerRequest>) => void) | null;
 };
 
+let limit = createOutputLimit();
+
 function send(text: string): void {
-  for (const line of text.split('\n')) ctx.postMessage({ type: 'line', text: line });
+  for (const line of text.split('\n')) {
+    for (const out of limit(line)) ctx.postMessage({ type: 'line', text: out });
+  }
 }
 
 ctx.onmessage = async (e) => {
   const { wasm, runtimeUrl } = e.data;
+  // The output limit covers one whole run.
+  limit = createOutputLimit();
   const capture = (...args: unknown[]) => send(args.map(String).join(' '));
   console.log = capture;
   console.info = capture;

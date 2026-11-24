@@ -1,14 +1,15 @@
 import { contentInput } from '../content';
 import { allRoutes, buildRegistry } from './core/registry';
 import { startRouter } from './core/router';
-import { createStore } from './core/store';
+import { browserStorage, createStore } from './core/store';
 import { initTheme } from './core/theme';
 import { TeaVMRunner } from './lab/teavm-runner';
 import { mountShell } from './pages/shell';
 import { renderRoute } from './pages/router-view';
 import './styles/index.css';
 
-const store = createStore(window.localStorage);
+// browserStorage() falls back to memory when the browser blocks storage. Passing window keeps tabs in sync.
+const store = createStore(browserStorage(window), window);
 const theme = initTheme(window, store);
 const registry = buildRegistry(contentInput);
 const shell = mountShell(document.getElementById('app') as HTMLElement, registry, theme);

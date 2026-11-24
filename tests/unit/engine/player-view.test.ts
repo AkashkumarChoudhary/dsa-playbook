@@ -18,6 +18,9 @@ const countTrace: TraceDef<{ nums: number[] }> = {
   },
 };
 const java = 'class Solution {\n  int f(int[] a) { // @L:loop\n    return a.length;\n  }\n}';
+// A form only sends when it is in the page, like in a real browser.
+const attached = () => document.body.appendChild(document.createElement('div'));
+afterEach(() => { document.body.innerHTML = ''; });
 
 describe('mountPlayerView', () => {
   it('renders the first step and steps with buttons and keys', () => {
@@ -37,7 +40,7 @@ describe('mountPlayerView', () => {
   });
 
   it('runs own input and shows plain errors', () => {
-    const host = document.createElement('div');
+    const host = attached();
     mountPlayerView(host, { trace: countTrace, java, input: { nums: [4] }, title: 'Count', reducedMotion: true });
     const input = host.querySelector<HTMLInputElement>('.player-input input[name="nums"]')!;
     expect(input.value).toBe('4');
@@ -48,6 +51,68 @@ describe('mountPlayerView', () => {
     (host.querySelector('[data-action="run-input"]') as HTMLButtonElement).click();
     expect(host.querySelector('.player-input .error')!.textContent).toBe('');
     expect(host.querySelector('.player-count')!.textContent).toBe('Step 1 of 2');
+  });
+});
+
+describe('keys and the own-input form', () => {
+  it('leaves Space on a focused button to that button', () => {
+    const host = document.createElement('div');
+    const v = mountPlayerView(host, { trace: countTrace, java, input: { nums: [4, 5, 6] }, title: 'Count', reducedMotion: true });
+    const next = host.querySelector<HTMLButtonElement>('[data-action="next"]')!;
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    next.dispatchEvent(space);
+    // The browser's own Space action on a button is a click. It must not be cancelled.
+    expect(space.defaultPrevented).toBe(false);
+    expect(v.player().playing).toBe(false);
+    next.click();
+    expect(host.querySelector('.player-count')!.textContent).toBe('Step 2 of 3');
+    expect(v.player().playing).toBe(false);
+  });
+
+  it('plays with Space on the player, and ignores keys with Ctrl, Alt or Meta', () => {
+    const host = document.createElement('div');
+    const v = mountPlayerView(host, { trace: countTrace, java, input: { nums: [4, 5, 6] }, title: 'Count', reducedMotion: true });
+    v.el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, bubbles: true }));
+    v.el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }));
+    v.el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', metaKey: true, bubbles: true }));
+    expect(host.querySelector('.player-count')!.textContent).toBe('Step 1 of 3');
+    v.el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    expect(v.player().playing).toBe(true);
+    v.dispose();
+  });
+
+  it('does not take over from autoplay when the learner only presses Tab', () => {
+    let cb: (e: unknown[]) => void = () => {};
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(c: (e: unknown[]) => void) { cb = c; }
+      observe() {}
+      disconnect() {}
+    });
+    const host = document.createElement('div');
+    const v = mountPlayerView(host, { trace: countTrace, java, input: { nums: [1, 2, 3] }, title: 'Count', reducedMotion: false });
+    v.el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    cb([{ isIntersecting: true, intersectionRatio: 1 }]);
+    expect(v.player().playing).toBe(true);
+    v.dispose();
+    vi.unstubAllGlobals();
+  });
+
+  it('puts the picture, the step sentence and the buttons before the code', () => {
+    const host = document.createElement('div');
+    const v = mountPlayerView(host, { trace: countTrace, java, input: { nums: [4] }, title: 'Count', reducedMotion: true });
+    expect([...v.el.children].map((c) => c.className)).toEqual(['player-head', 'player-stage', 'player-note', 'player-controls', 'player-side', 'player-input']);
+  });
+
+  it('runs the own input when the form is sent, without reloading the page', () => {
+    const host = document.createElement('div');
+    mountPlayerView(host, { trace: countTrace, java, input: { nums: [4] }, title: 'Count', reducedMotion: true });
+    const form = host.querySelector<HTMLFormElement>('form.player-input')!;
+    expect(form.querySelector('[data-action="run-input"]')!.getAttribute('type')).toBe('submit');
+    host.querySelector<HTMLInputElement>('.player-input input[name="nums"]')!.value = '1, 2, 3, 4';
+    const submit = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(submit);
+    expect(submit.defaultPrevented).toBe(true);
+    expect(host.querySelector('.player-count')!.textContent).toBe('Step 1 of 4');
   });
 });
 
@@ -96,7 +161,7 @@ describe('autoplay and errors', () => {
 
   it('shows a plain error when run throws', () => {
     const bad: TraceDef<{ nums: number[] }> = { ...countTrace, run: (i) => { if (i.nums[0] === 9) throw new Error('boom'); return countTrace.run(i); } };
-    const host = document.createElement('div');
+    const host = attached();
     mountPlayerView(host, { trace: bad, java, input: { nums: [4] }, title: 'Count', reducedMotion: true });
     host.querySelector<HTMLInputElement>('input[name="nums"]')!.value = '9';
     (host.querySelector('[data-action="run-input"]') as HTMLButtonElement).click();

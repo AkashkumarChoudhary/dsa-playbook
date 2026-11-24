@@ -122,6 +122,28 @@ describe('checkContent fixes', () => {
   });
 });
 
+describe('checkContent raw HTML', () => {
+  const msgs = (f: ReturnType<typeof fixture>) => errors(f).map((i) => `${i.where}: ${i.message}`).join('\n');
+  it('flags script, iframe, event attributes and javascript: links in raw HTML fields', () => {
+    const f = fixture();
+    f.lessons[0]!.example = '<p>Hi</p><script>alert(1)</script>';
+    f.lessons[0]!.everyday = '<p><IFRAME src="https://example.com"></iframe></p>';
+    f.lessons[0]!.deep = '<p><img src="x" onerror="alert(1)"></p>';
+    f.problems[0]!.statement = '<p><a href="JavaScript:alert(1)">Click</a></p>';
+    const m = msgs(f);
+    expect(m).toContain('lesson l example: HTML has a <script> tag');
+    expect(m).toContain('lesson l everyday: HTML has an <iframe> tag');
+    expect(m).toContain('lesson l deep: HTML has an on…= event attribute');
+    expect(m).toContain('problem p statement: HTML has a javascript: link');
+  });
+  it('does not flag plain words that look a bit similar', () => {
+    const f = fixture();
+    f.lessons[0]!.example = '<p>Turn it on = start. A script is a plan.</p>';
+    f.problems[0]!.statement = '<p class="lead" data-on="x">Do the thing.</p>';
+    expect(msgs(f)).not.toContain('HTML has');
+  });
+});
+
 describe('real content', () => {
   it('has no content errors', () => {
     const issues = checkContent(contentInput);

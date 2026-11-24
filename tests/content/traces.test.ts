@@ -24,3 +24,18 @@ for (const problem of contentInput.problems) {
     });
   }
 }
+
+describe('contains-duplicate notes read well for one number', () => {
+  it('uses "is" and "makes" for n = 1, and "are" and "make" for more', () => {
+    const brute = registry.trace('contains-duplicate/brute')!;
+    const one = brute.run({ nums: [7] }).steps.map((s) => s.note);
+    expect(one[0]).toBe('We will compare every pair. There is 1 number.');
+    expect(one.at(-1)).toContain('1 number makes 0 pairs.');
+    const three = brute.run({ nums: [1, 2, 3] }).steps.map((s) => s.note);
+    expect(three[0]).toBe('We will compare every pair. There are 3 numbers.');
+    expect(three.at(-1)).toContain('3 numbers make 3 pairs.');
+    for (const note of [...one, ...registry.trace('contains-duplicate/optimal')!.run({ nums: [7] }).steps.map((s) => s.note)]) {
+      expect(note).not.toMatch(/\b1 numbers\b|\bThere are 1\b|\b1 number make\b/);
+    }
+  });
+});

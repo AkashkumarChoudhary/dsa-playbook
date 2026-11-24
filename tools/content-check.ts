@@ -39,6 +39,22 @@ function prose(issues: Issue[], where: string, text: string, moduleOrder: number
   }
 }
 
+/** These fields go into the page through raw(), with no escaping, so they must not carry code. */
+const UNSAFE_HTML: [RegExp, string][] = [
+  [/<script/i, 'a <script> tag'],
+  [/<iframe/i, 'an <iframe> tag'],
+  [/<[^>]*\son[a-z]+\s*=/i, 'an on…= event attribute'],
+  [/javascript:/i, 'a javascript: link'],
+];
+
+function safeHtml(issues: Issue[], where: string, fields: Record<string, string>) {
+  for (const [name, value] of Object.entries(fields)) {
+    for (const [pattern, what] of UNSAFE_HTML) {
+      if (pattern.test(value)) issues.push({ level: 'error', where: `${where} ${name}`, message: `HTML has ${what}. Raw HTML must not run code.` });
+    }
+  }
+}
+
 function required(issues: Issue[], where: string, fields: Record<string, unknown>) {
   for (const [name, v] of Object.entries(fields)) {
     if (typeof v !== 'string' || v.trim() === '') issues.push({ level: 'error', where, message: `"${name}" is empty.` });
@@ -50,6 +66,7 @@ function checkLesson(issues: Issue[], l: Lesson, order: number, input: ContentIn
   if (!ID.test(l.id)) issues.push({ level: 'error', where: w, message: 'id must be lowercase kebab-case.' });
   required(issues, w, { title: l.title, summary: l.summary, example: l.example, everyday: l.everyday, deep: l.deep, 'spot.size': l.spot.size, 'spot.words': l.spot.words, 'spot.shape': l.spot.shape, 'spot.bottleneck': l.spot.bottleneck, 'template.title': l.template.title, 'template.java': l.template.java });
   if (PLACEHOLDER.test(l.template.java)) issues.push({ level: 'error', where: w, message: 'template java contains placeholder text.' });
+  safeHtml(issues, w, { example: l.example, everyday: l.everyday, deep: l.deep });
   if (l.steps.length < 3 || l.steps.length > 6) issues.push({ level: 'error', where: w, message: `needs 3 to 6 steps, has ${l.steps.length}.` });
   if (l.quiz.length !== 3) issues.push({ level: 'error', where: w, message: `needs exactly 3 quiz questions, has ${l.quiz.length}.` });
   l.quiz.forEach((q, i) => {
@@ -98,6 +115,7 @@ function checkProblem(issues: Issue[], p: Problem, order: number, input: Content
   if (!ID.test(p.id)) issues.push({ level: 'error', where: w, message: 'id must be lowercase kebab-case.' });
   required(issues, w, { title: p.title, statement: p.statement, explain30: p.explain30, hook: p.hook, 'spot.prompt': p.spot.prompt, starter: p.starter });
   if (!p.source.url.startsWith('https://')) issues.push({ level: 'error', where: w, message: 'source url must start with https://.' });
+  safeHtml(issues, w, { statement: p.statement });
   if (p.limits.length < 1) issues.push({ level: 'error', where: w, message: 'needs at least one limit.' });
   if (p.examples.length < 1) issues.push({ level: 'error', where: w, message: 'needs at least one example.' });
   if (p.hints.length !== 3) issues.push({ level: 'error', where: w, message: 'needs exactly 3 hints.' });

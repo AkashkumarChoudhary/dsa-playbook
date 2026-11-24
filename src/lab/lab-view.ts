@@ -1,9 +1,9 @@
-import type { Problem, TestCase } from '../content-types';
+import type { JavaType, Problem, TestCase } from '../content-types';
 import { html, render } from '../core/html';
 import type { Store } from '../core/store';
 import { createEditor } from './editor';
 import { LiteralError, toJavaLiteral } from './java-literals';
-import type { JavaRunner, RunResult, TestResult } from './runner';
+import type { JavaRunner, RunResult, TestKind, TestResult } from './runner';
 
 export interface LabDeps {
   runner: JavaRunner;
@@ -19,10 +19,20 @@ export interface LabHandle {
 
 const NOTICES_URL = 'https://github.com/AkashkumarChoudhary/dsa-playbook/blob/main/THIRD_PARTY_NOTICES.md';
 
-function row(t: TestResult) {
-  const label = t.kind === 'sample' ? 'Example' : t.kind === 'custom' ? 'Your test' : t.kind === 'speed' ? 'Speed test' : 'Hidden test';
+/** How to type a value of each Java type in the "Add your own test" boxes. */
+const TYPED_EXAMPLE: Record<JavaType, string> = {
+  int: '5', long: '5', double: '2.5', boolean: 'true', char: '"a"', String: '"abc"',
+  'int[]': '[1, 2, 3]', 'int[][]': '[[1, 2], [3, 4]]', 'char[][]': '[["a", "b"], ["c", "d"]]', 'String[]': '["a", "b"]',
+  'List<Integer>': '[1, 2, 3]', 'List<String>': '["a", "b"]', 'List<List<Integer>>': '[[1, 2], [3]]', 'List<List<String>>': '[["a"], ["b", "c"]]',
+};
+
+const KIND_LABEL: Record<TestKind, string> = { sample: 'Example', custom: 'Your test', hidden: 'Hidden test', speed: 'Speed test' };
+
+/** n is the test's place among tests of its kind, so learners see "Example 1", not an internal id. */
+function row(t: TestResult, n: number) {
+  const label = t.kind === 'speed' ? KIND_LABEL.speed : `${KIND_LABEL[t.kind]} ${n}`;
   return html`<li data-testid="test-row" data-pass="${String(t.pass)}" data-kind="${t.kind}" class="${t.pass ? 'pass' : 'fail'}">
-    <div class="test-head"><span aria-hidden="true">${t.pass ? '✅' : '❌'}</span> <b>${label} ${t.id}</b> <span class="muted">${t.timeMs} ms</span></div>
+    <div class="test-head"><span aria-hidden="true">${t.pass ? '✅' : '❌'}</span> <b>${label}</b> <span class="muted">${t.timeMs} ms</span></div>
     <div class="test-io"><span>Input</span><code>${t.input}</code><span>Expected</span><code>${t.expected}</code>${t.actual ? html`<span>Got</span><code>${t.actual}</code>` : null}</div>
     ${t.error ? html`<p class="test-error">${t.error}</p>` : null}
     ${t.stdout ? html`<pre class="test-stdout">${t.stdout}</pre>` : null}
@@ -48,8 +58,8 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
     <div class="lab-results" data-testid="lab-results"></div>
     <details class="lab-custom"><summary>➕ Add your own test</summary>
       <div class="custom-fields">
-        ${problem.spec.params.map((p) => html`<label>${p.name} (${p.type}) <input name="custom-${p.name}" placeholder="JSON, for example [1, 2, 3]" /></label>`)}
-        <label>expected (${problem.spec.returns}) <input name="custom-expected" placeholder="JSON, for example true" /></label>
+        ${problem.spec.params.map((p) => html`<label>${p.name} (${p.type}) <input name="custom-${p.name}" placeholder="Write it like ${TYPED_EXAMPLE[p.type]}" /></label>`)}
+        <label>expected (${problem.spec.returns}) <input name="custom-expected" placeholder="Write it like ${TYPED_EXAMPLE[problem.spec.returns]}" /></label>
         <button type="button" data-testid="lab-add-test">Add test</button>
       </div>
       <p class="custom-error" role="status"></p>
@@ -74,6 +84,15 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
 
   const saved = deps.store.get().code[problem.id]?.source;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingCode: string | null = null;
+  const saveCode = (source: string) => deps.store.update((st) => { st.code[problem.id] = { source, updatedAt: Date.now() }; });
+  /** Saves an edit that is still waiting for its timer, for example when the learner leaves the page. */
+  const flushSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    if (pendingCode !== null) saveCode(pendingCode);
+    pendingCode = null;
+  };
   let startedAt: number | null = null;
   let clockTimer: ReturnType<typeof setInterval> | null = null;
   const custom: TestCase[] = [];
@@ -87,9 +106,8 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
       }, 1000);
     }
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      deps.store.update((st) => { st.code[problem.id] = { source: value, updatedAt: Date.now() }; });
-    }, 400);
+    pendingCode = value;
+    saveTimer = setTimeout(flushSave, 400);
   });
 
   function busy(on: boolean) {
@@ -117,8 +135,10 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
     const prefix = result.kind === 'timeout' ? 'Stopped: it ran too long. ' : result.kind === 'stopped' ? 'Stopped. ' : '';
     status.textContent = `${prefix}${passed} of ${total} passed.${passed === total && total > 0 && result.kind === 'tests' ? ' 🎉 All tests passed.' : ''}`;
     const hiddenPassed = result.results.filter((t) => t.kind === 'hidden' && t.pass);
-    const shown = result.results.filter((t) => !(t.kind === 'hidden' && t.pass));
-    render(results, html`<ul class="test-list">${shown.map(row)}</ul>${hiddenPassed.length ? html`<p class="muted">🔒 ${hiddenPassed.length} hidden test${hiddenPassed.length === 1 ? '' : 's'} passed.</p>` : null}`);
+    const count: Partial<Record<TestKind, number>> = {};
+    const numbered = result.results.map((t) => ({ t, n: (count[t.kind] = (count[t.kind] ?? 0) + 1) }));
+    const shown = numbered.filter(({ t }) => !(t.kind === 'hidden' && t.pass));
+    render(results, html`<ul class="test-list">${shown.map(({ t, n }) => row(t, n))}</ul>${hiddenPassed.length ? html`<p class="muted">🔒 ${hiddenPassed.length} hidden test${hiddenPassed.length === 1 ? '' : 's'} passed.</p>` : null}`);
     consoleEl.textContent = result.stdout;
   }
 
@@ -160,19 +180,19 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
       for (const p of problem.spec.params) {
         const input = $<HTMLInputElement>(`input[name="custom-${p.name}"]`);
         let value: unknown;
-        try { value = JSON.parse(input.value); } catch { throw new LiteralError(`${p.name}: write it as JSON, for example [1, 2, 3].`); }
+        try { value = JSON.parse(input.value); } catch { throw new LiteralError(`${p.name}: write it like ${TYPED_EXAMPLE[p.type]}.`); }
         toJavaLiteral(value, p.type);
         args.push(value);
       }
       let expected: unknown;
       const expInput = $<HTMLInputElement>('input[name="custom-expected"]');
-      try { expected = JSON.parse(expInput.value); } catch { throw new LiteralError('expected: write it as JSON, for example true.'); }
+      try { expected = JSON.parse(expInput.value); } catch { throw new LiteralError(`expected: write it like ${TYPED_EXAMPLE[problem.spec.returns]}.`); }
       toJavaLiteral(expected, problem.spec.returns);
       const test: TestCase = { id: `c${custom.length + 1}`, args, expected };
       custom.push(test);
       customError.textContent = '';
       const li = document.createElement('li');
-      li.textContent = `${test.id}: ${problem.spec.params.map((p, i) => `${p.name} = ${JSON.stringify(args[i])}`).join(', ')} → ${JSON.stringify(expected)}`;
+      li.textContent = `Your test ${custom.length}: ${problem.spec.params.map((p, i) => `${p.name} = ${JSON.stringify(args[i])}`).join(', ')} → ${JSON.stringify(expected)}`;
       customList.append(li);
     } catch (err) {
       customError.textContent = err instanceof Error ? err.message : String(err);
@@ -185,10 +205,13 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
       const safe = current === '' || current === problem.starter.trim() || current === src.trim();
       if (!safe && !confirmFn('Replace your code with this solution? Your code will be lost.')) return;
       editor.setValue(src);
-      el.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     },
     dispose() {
-      if (saveTimer) clearTimeout(saveTimer);
+      // A run still waiting for Java to load must not start after the learner leaves.
+      cancelled = true;
+      flushSave();
       if (clockTimer) clearInterval(clockTimer);
       deps.runner.stop();
       editor.destroy();

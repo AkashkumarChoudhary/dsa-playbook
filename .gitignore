@@ -1,5 +1,7 @@
 # Helper notes (not published)
 reference/
+# Agent planning notes (a second guard, they must never be published)
+.superpowers/
 
 # Dependencies and build output
 node_modules/

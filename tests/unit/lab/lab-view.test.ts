@@ -153,4 +153,68 @@ describe('mountLab', () => {
     expect(ed.value).toBe('class Solution { /* solution */ }');
     lab.dispose();
   });
+
+  it('saves a pending edit when the lab is closed', () => {
+    vi.useFakeTimers();
+    const store = memStore();
+    const ed = fakeEditor();
+    const lab = mountLab(document.createElement('div'), problem, { runner: fakeRunner({ kind: 'tests', results: [], stdout: '' }), store, makeEditor: ed.make });
+    ed.type('class Solution { /* typed just now */ }');
+    vi.advanceTimersByTime(100);
+    expect(store.get().code['contains-duplicate']).toBeUndefined();
+    lab.dispose();
+    expect(store.get().code['contains-duplicate']?.source).toBe('class Solution { /* typed just now */ }');
+    vi.useRealTimers();
+  });
+
+  it('does not start a run after the lab is closed while Java loads', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const run = vi.fn();
+    const runner: JavaRunner = { ready: () => gate, run, stop: vi.fn() };
+    const host = document.createElement('div');
+    const lab = mountLab(host, problem, { runner, store: memStore(), makeEditor: fakeEditor().make });
+    (host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).click();
+    lab.dispose();
+    release();
+    await flush();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('labels tests in plain words and numbers them by kind', async () => {
+    const host = document.createElement('div');
+    const r = (id: string, kind: 'sample' | 'custom' | 'hidden' | 'speed', pass: boolean) => ({ id, kind, pass, input: 'nums = [1]', expected: 'false', actual: 'false', stdout: '', timeMs: 1 });
+    const runner = fakeRunner({ kind: 'tests', stdout: '', results: [r('s1', 'sample', true), r('s2', 'sample', true), r('c1', 'custom', true), r('h1', 'hidden', true), r('h2', 'hidden', false), r('speed', 'speed', false)] });
+    mountLab(host, problem, { runner, store: memStore(), makeEditor: fakeEditor().make });
+    (host.querySelector('[data-testid="lab-submit"]') as HTMLButtonElement).click();
+    await flush();
+    const labels = [...host.querySelectorAll('[data-testid="test-row"] .test-head b')].map((b) => b.textContent);
+    expect(labels).toEqual(['Example 1', 'Example 2', 'Your test 1', 'Hidden test 2', 'Speed test']);
+  });
+
+  it('explains the custom test format without the word JSON', () => {
+    const host = document.createElement('div');
+    mountLab(host, problem, { runner: fakeRunner({ kind: 'tests', results: [], stdout: '' }), store: memStore(), makeEditor: fakeEditor().make });
+    expect(host.querySelector<HTMLInputElement>('input[name="custom-nums"]')!.placeholder).toBe('Write it like [1, 2, 3]');
+    expect(host.querySelector<HTMLInputElement>('input[name="custom-expected"]')!.placeholder).toBe('Write it like true');
+    host.querySelector<HTMLInputElement>('input[name="custom-nums"]')!.value = '1, 2';
+    (host.querySelector('[data-testid="lab-add-test"]') as HTMLButtonElement).click();
+    expect(host.querySelector('.custom-error')!.textContent).toBe('nums: write it like [1, 2, 3].');
+    host.querySelector<HTMLInputElement>('input[name="custom-nums"]')!.value = '[1, 2]';
+    host.querySelector<HTMLInputElement>('input[name="custom-expected"]')!.value = 'false';
+    (host.querySelector('[data-testid="lab-add-test"]') as HTMLButtonElement).click();
+    expect(host.querySelector('.custom-list li')!.textContent).toBe('Your test 1: nums = [1,2] → false');
+    expect(host.textContent).not.toContain('JSON');
+  });
+
+  it('jumps without smooth scrolling when the learner wants less motion', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(prefers-reduced-motion: reduce)', addEventListener() {} }));
+    const host = document.createElement('div');
+    const lab = mountLab(host, problem, { runner: fakeRunner({ kind: 'tests', results: [], stdout: '' }), store: memStore(), makeEditor: fakeEditor().make });
+    const scroll = vi.fn();
+    (host.querySelector('.lab') as HTMLElement).scrollIntoView = scroll;
+    lab.loadCode('class Solution {}');
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' });
+    vi.unstubAllGlobals();
+  });
 });

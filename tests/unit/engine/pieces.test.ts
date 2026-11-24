@@ -24,6 +24,15 @@ describe('array piece', () => {
     p.update({ kind: 'array', id: 'a', label: 'a', values: [1, 2], pointers: [{ name: 'i', index: 0 }], marks: [] });
     expect(p.el.querySelector('.ptr[data-name="j"]')).toBeNull();
   });
+  it('widens the boxes for long numbers, on the track so pointers use the same size', () => {
+    const p = createArrayPiece();
+    const track = p.el.querySelector<HTMLElement>('.arr-track')!;
+    p.update({ kind: 'array', id: 'a', label: 'a', values: [3, 8], pointers: [], marks: [] });
+    expect(track.style.getPropertyValue('--cell')).toBe('max(2.75rem, calc(1 * 0.65rem + 1rem))');
+    p.update({ kind: 'array', id: 'a', label: 'a', values: [3, 1000000000], pointers: [{ name: 'i', index: 1 }], marks: [] });
+    expect(track.style.getPropertyValue('--cell')).toBe('max(2.75rem, calc(10 * 0.65rem + 1rem))');
+    expect(track.contains(p.el.querySelector('.ptr[data-name="i"]'))).toBe(true);
+  });
 });
 
 describe('hash piece', () => {
