@@ -6,7 +6,7 @@ import type { createEditor } from '../lab/editor';
 import type { JavaRunner } from '../lab/runner';
 import { renderHome } from './home';
 import { mountLessonPage } from './lesson-page';
-import { renderModule } from './module-page';
+import { mountModulePage } from './module-page';
 import { renderNotFound } from './not-found';
 import { mountProblemPage } from './problem-page';
 
@@ -15,6 +15,8 @@ export interface PageContext {
   store: Store;
   runner: JavaRunner;
   makeEditor?: typeof createEditor;
+  /** the clock, so tests can pick the time. Defaults to Date.now. */
+  now?: () => number;
 }
 
 const noop = () => {};
@@ -28,8 +30,8 @@ export function renderRoute(route: Route, outlet: HTMLElement, ctx: PageContext)
   if (route.name === 'module') {
     const m = ctx.registry.module(route.id);
     if (m) {
-      render(outlet, renderModule(m, ctx.registry));
-      return { title: `${m.title} · DSA Playbook`, cleanup: noop };
+      const cleanup = mountModulePage(outlet, m, ctx);
+      return { title: `${m.title} · DSA Playbook`, cleanup };
     }
   }
   if (route.name === 'lesson') {

@@ -70,3 +70,40 @@ describe('mountLessonPage', () => {
     dispose();
   });
 });
+
+describe('lesson progress (Part 1b)', () => {
+  function mount(now = 1000) {
+    const registry = buildRegistry({ modules: [], lessons: [lesson], problems: [], traces: [] });
+    const d: Record<string, string> = {};
+    const store = createStore({ getItem: (k) => d[k] ?? null, setItem: (k, v) => { d[k] = v; } });
+    const host = document.createElement('div');
+    const dispose = mountLessonPage(host, { ...lesson, viz: [] }, { registry, store, runner: { ready: async () => {}, run: async () => ({ kind: 'runnerUnavailable', reason: '' }), stop() {} }, now: () => now });
+    return { host, store, dispose };
+  }
+  const answer = (host: HTMLElement, picks: number[]) => {
+    picks.forEach((k, qi) => host.querySelectorAll<HTMLButtonElement>(`.quiz-option[data-q="${qi}"]`)[k]!.click());
+  };
+
+  it('marks the lesson opened and asks for 2 of 3', () => {
+    const { host, store, dispose } = mount();
+    expect(store.get().lessons.l).toEqual({ openedAt: 1000, bestScore: 0, total: 0, updatedAt: 1000 });
+    expect(host.querySelector('[data-testid="lesson-status"]')!.textContent).toBe('Get 2 of 3 right to finish this lesson.');
+    dispose();
+  });
+
+  it('saves the best score, passes at 2 of 3, and can retry', () => {
+    const { host, store, dispose } = mount();
+    const retry = host.querySelector<HTMLButtonElement>('[data-testid="quiz-retry"]')!;
+    expect(retry.hidden).toBe(true);
+    answer(host, [0, 1, 1]);
+    expect(store.get().lessons.l).toMatchObject({ bestScore: 0, total: 3 });
+    expect(host.querySelector('[data-testid="lesson-status"]')!.textContent).toBe('Your best score is 0 of 3. Get 2 of 3 right to finish this lesson.');
+    expect(retry.hidden).toBe(false);
+    retry.click();
+    expect(host.querySelectorAll('.quiz-question')).toHaveLength(3);
+    answer(host, [1, 0, 0]);
+    expect(store.get().lessons.l).toMatchObject({ bestScore: 3, passedAt: 1000 });
+    expect(host.querySelector('[data-testid="lesson-status"]')!.textContent).toBe('✅ Lesson done. Your best score is 3 of 3.');
+    dispose();
+  });
+});
