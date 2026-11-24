@@ -55,3 +55,43 @@ export interface TraceDef<I = any> {
   fromArgs(args: unknown[]): I;
   run(input: I): Trace;
 }
+
+export function createRecorder(): {
+  step(s: Omit<Snapshot, 'changed'>): void;
+  finish(result: unknown): Trace;
+} {
+  const steps: Snapshot[] = [];
+  let prev: Record<string, string> | null = null;
+  return {
+    step(s) {
+      const before = prev;
+      const changed = before === null ? [] : Object.keys(s.vars).filter((k) => before[k] !== s.vars[k]);
+      steps.push(structuredClone({ ...s, changed }));
+      prev = { ...s.vars };
+    },
+    finish(result) {
+      return { steps, result };
+    },
+  };
+}
+
+const fmt = (n: number) => n.toLocaleString('en-US');
+
+export function parseIntList(
+  text: string,
+  opts: { min: number; max: number; minLength: number; maxLength: number },
+): ParseResult<number[]> {
+  const cleaned = text.trim().replace(/^\[/, '').replace(/\]$/, '').trim();
+  const parts = cleaned === '' ? [] : cleaned.split(/[\s,]+/).filter((p) => p !== '');
+  if (parts.length < opts.minLength || parts.length > opts.maxLength) {
+    return { ok: false, message: `Use between ${opts.minLength} and ${opts.maxLength} numbers.` };
+  }
+  if (!parts.every((p) => /^-?\d+$/.test(p))) {
+    return { ok: false, message: 'Use whole numbers separated by commas, like 3, 8, 1, 8.' };
+  }
+  const values = parts.map(Number);
+  if (values.some((v) => v < opts.min || v > opts.max)) {
+    return { ok: false, message: `Each number must be between ${fmt(opts.min)} and ${fmt(opts.max)}.` };
+  }
+  return { ok: true, value: values };
+}
