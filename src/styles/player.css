@@ -19,7 +19,7 @@
 .piece { margin: 0; }
 .piece figcaption { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
 .arr-track { --cell: 2.75rem; position: relative; width: calc(var(--n) * var(--cell)); }
-.arr-cells { display: grid; grid-template-columns: repeat(var(--n), var(--cell)); }
+.arr-cells { margin-top: 1.2rem; display: grid; grid-template-columns: repeat(var(--n), var(--cell)); }
 .cell { height: var(--cell); border: 1px solid var(--line); display: grid; place-items: center; position: relative; font-family: var(--mono); font-weight: 600; background: var(--bg-2); transition: background-color var(--dur), color var(--dur); }
 .cell .idx { position: absolute; top: -1.15rem; font-size: 0.7rem; color: var(--muted); font-weight: 400; }
 .cell.mark-current { background: var(--mark-current); color: #fff; }
