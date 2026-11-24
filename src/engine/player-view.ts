@@ -3,7 +3,7 @@ import { createCodePanel } from './pieces/code-panel';
 import { createHashPiece } from './pieces/hash-piece';
 import { createVarsPanel } from './pieces/vars-panel';
 import { Player, type Speed } from './player';
-import type { TraceDef, View } from './trace';
+import type { Trace, TraceDef, View } from './trace';
 
 export interface PlayerViewOptions {
   trace: TraceDef;
@@ -131,7 +131,12 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
     speedBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(([0.5, 1, 2] as Speed[])[i] === player.speed)));
   }
 
+  let userControlled = false;
+  let autoStarted = false;
+  let autoPlaying = false;
+
   controls.addEventListener('click', (e) => {
+    userControlled = true;
     const action = (e.target as HTMLElement).closest('button')?.dataset.action;
     if (action === 'reset') player.reset();
     else if (action === 'back') player.back();
@@ -142,22 +147,32 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
 
   el.addEventListener('keydown', (e) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    userControlled = true;
     if (e.key === 'ArrowRight') { player.next(); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { player.back(); e.preventDefault(); }
     else if (e.key === ' ') { player.toggle(); e.preventDefault(); }
   });
 
   runInput.addEventListener('click', () => {
+    userControlled = true;
     const fields: Record<string, string> = {};
     for (const [name, input] of inputs) fields[name] = input.value;
     const parsed = opts.trace.parseInput(fields);
     if (!parsed.ok) { error.textContent = parsed.message; return; }
-    const trace = opts.trace.run(parsed.value);
-    if (trace.steps.length > opts.trace.maxSteps) { error.textContent = 'This input makes too many steps to show. Try a shorter one.'; return; }
+    let trace: Trace;
+    let next: Player;
+    try {
+      trace = opts.trace.run(parsed.value);
+      if (trace.steps.length > opts.trace.maxSteps) { error.textContent = 'This input makes too many steps to show. Try a shorter one.'; return; }
+      next = new Player(trace);
+    } catch {
+      error.textContent = 'Could not run this input. Try a smaller or simpler one.';
+      return;
+    }
     error.textContent = '';
     off();
     player.dispose();
-    player = new Player(trace);
+    player = next;
     off = player.onChange(draw);
     draw();
   });
@@ -166,8 +181,16 @@ export function mountPlayerView(host: HTMLElement, opts: PlayerViewOptions): Pla
   if ((opts.autoplayInView ?? true) && !reduced && typeof IntersectionObserver !== 'undefined') {
     observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) { if (!player.atEnd) player.play(); }
-        else player.pause();
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
+          if (!autoStarted && !userControlled && !player.atEnd) {
+            autoStarted = true;
+            autoPlaying = true;
+            player.play();
+          }
+        } else if (autoPlaying && !userControlled) {
+          autoPlaying = false;
+          player.pause();
+        }
       }
     }, { threshold: [0, 0.35] });
     observer.observe(el);

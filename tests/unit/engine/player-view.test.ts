@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountPlayerView, mountVizGroup } from '../../../src/engine/player-view';
 import { createRecorder, parseIntList, type TraceDef } from '../../../src/engine/trace';
 
@@ -65,5 +65,42 @@ describe('mountVizGroup', () => {
     expect(tabs[1]!.getAttribute('aria-pressed')).toBe('true');
     expect(host.querySelector('.player-count')!.textContent).toBe('Step 1 of 2');
     dispose();
+  });
+});
+
+describe('autoplay and errors', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('autoplays once, respects the user, and disconnects', () => {
+    let cb: (e: unknown[]) => void = () => {};
+    const disconnect = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(c: (e: unknown[]) => void) { cb = c; }
+      observe() {}
+      disconnect = disconnect;
+    });
+    const host = document.createElement('div');
+    const v = mountPlayerView(host, { trace: countTrace, java, input: { nums: [1, 2, 3] }, title: 'Count', reducedMotion: false });
+    const inView = { isIntersecting: true, intersectionRatio: 1 };
+    const out = { isIntersecting: false, intersectionRatio: 0 };
+    cb([inView]);
+    expect(v.player().playing).toBe(true);
+    (host.querySelector('[data-action="play"]') as HTMLButtonElement).click();
+    expect(v.player().playing).toBe(false);
+    cb([out]);
+    cb([inView]);
+    expect(v.player().playing).toBe(false);
+    v.dispose();
+    expect(disconnect).toHaveBeenCalled();
+  });
+
+  it('shows a plain error when run throws', () => {
+    const bad: TraceDef<{ nums: number[] }> = { ...countTrace, run: (i) => { if (i.nums[0] === 9) throw new Error('boom'); return countTrace.run(i); } };
+    const host = document.createElement('div');
+    mountPlayerView(host, { trace: bad, java, input: { nums: [4] }, title: 'Count', reducedMotion: true });
+    host.querySelector<HTMLInputElement>('input[name="nums"]')!.value = '9';
+    (host.querySelector('[data-action="run-input"]') as HTMLButtonElement).click();
+    expect(host.querySelector('.player-input .error')!.textContent).toContain('Could not run');
+    expect(host.querySelector('.player-count')!.textContent).toBe('Step 1 of 1');
   });
 });
