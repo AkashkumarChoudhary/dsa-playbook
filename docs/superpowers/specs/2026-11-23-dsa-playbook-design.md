@@ -152,13 +152,15 @@ Every pattern lesson also has a **❌ Trap** box: a problem that looks like this
 2. 🔍 **Spot it first** (Section 6.2).
 3. 💬 **Three hints**, opened one at a time.
 4. 🧪 **Java lab** (Section 10).
-5. 🐢 Brute → 🚶 Better → 🚀 Optimal, each collapsed. Each has the idea, Java code, Big-O, and "what repeated work does the next step remove?" "Better" appears only when a real middle step exists.
-6. Dry-run animation of the optimal solution.
-7. A comparison table of the approaches.
-8. ⚠️ Edge cases and common mistakes.
-9. 🗣️ **30-second explanation**: say it first, then reveal.
-10. 🪝 Memory hook, 🔗 related problems and look-alikes.
-11. Tracker buttons (Section 9.1).
+5. ⚠️ Edge cases (the list only).
+6. **"Show solutions" gate** (owner decision, 2026-11-24). Everything below stays hidden until the learner presses **Show solutions**. Pressing it counts as a peek. Part 1b uses that moment for the "Solved alone" level (Section 9.1). The dry-run player is only mounted after the reveal.
+7. 🐢 Brute → 🚶 Better → 🚀 Optimal, each collapsed. Each has the idea, Java code, Big-O, and "what repeated work does the next step remove?" "Better" appears only when a real middle step exists.
+8. Dry-run animation of the optimal solution.
+9. A comparison table of the approaches.
+10. Common mistakes.
+11. 🗣️ **30-second explanation**: say it first, then reveal.
+12. 🪝 Memory hook, 🔗 related problems and look-alikes.
+13. Tracker buttons (Section 9.1).
 
 ### 7.4 Module page
 
@@ -470,6 +472,13 @@ New visual pieces and harness types are added in the first part that needs them.
 3. Reduced-motion check on each new animation.
 4. Every new trace passes its correctness test on all of the problem's test cases.
 5. The owner reviews the part in the browser.
+
+### 15.2 Git workflow and licence (owner decisions, 2026-11-24)
+
+- **Part 1a** went into git as task-by-task history, one commit per task and per review fix, pushed to `main`.
+- **From Part 1b on**, each part is built on its own branch (`part-1b`, `part-2`, …) with one commit per reviewed task. It goes in as one pull request. The owner reviews the part in the browser, then merges it. A push to `main` deploys to GitHub Pages.
+- **Licence:** code is MIT (`LICENSE`). Learning content (`content/`, `docs/curriculum/`) is CC BY-NC-SA 4.0 (`LICENSE-CONTENT.md`). Third-party parts are listed in `THIRD_PARTY_NOTICES.md`.
+- **Full problem list:** `docs/curriculum/problem-map.md`. It has the NeetCode 150, the Striver lists and the extra problems, each with its module and its part.
 
 ## 16. Risks
 
