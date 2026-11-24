@@ -85,6 +85,43 @@ describe('checkContent', () => {
   });
 });
 
+describe('checkContent fixes', () => {
+  const msgs = (f: ReturnType<typeof fixture>) => errors(f).map((i) => `${i.where}: ${i.message}`).join('\n');
+  it('checks module prose', () => {
+    const f = fixture();
+    f.modules[0]!.summary = 'Fast; very fast.';
+    expect(msgs(f)).toContain('module m summary: uses a semicolon');
+  });
+  it('checks complexity facts', () => {
+    const f = fixture();
+    f.lessons[0]!.complexityFacts[0]!.why = 'Fast; truly.';
+    expect(msgs(f)).toContain('complexity fact 1');
+  });
+  it('flags recursively in module 1', () => {
+    const f = fixture();
+    f.lessons[0]!.everyday = '<p>Solve it recursively.</p>';
+    expect(msgs(f)).toContain('recursion');
+  });
+  it('exempts previews per term only', () => {
+    const f = fixture();
+    f.lessons[0]!.everyday = '<p>Later you will learn sorting in Module 7.</p><p>Here we use recursion.</p>';
+    const m = msgs(f);
+    expect(m).toContain('recursion');
+    expect(m).not.toContain('sorting');
+  });
+  it('flags placeholders in approach java', () => {
+    const f = fixture();
+    f.problems[0]!.approaches[0]!.java = 'class Solution { // TODO\n}';
+    expect(msgs(f)).toContain('placeholder');
+  });
+  it('does not flag unknown entities as semicolons', () => {
+    const f = fixture();
+    f.lessons[0]!.everyday = '<p>n &le; 10 &rarr; fine.</p>';
+    expect(msgs(f)).not.toContain('semicolon');
+    expect(stripHtml('a &#65; &#x42; &hellip; b')).toBe('a A B b');
+  });
+});
+
 describe('real content', () => {
   it('has no content errors', () => {
     const issues = checkContent(contentInput);

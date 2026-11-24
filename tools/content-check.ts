@@ -29,9 +29,10 @@ function prose(issues: Issue[], where: string, text: string, moduleOrder: number
     if (n > 30) issues.push({ level: 'error', where, message: `sentence has ${n} words (max 30): "${s.slice(0, 60)}…"` });
     else if (n > 20) issues.push({ level: 'warn', where, message: `sentence has ${n} words (aim for 20): "${s.slice(0, 60)}…"` });
   }
-  if (!PREVIEW.test(plain)) {
+  const previews = sentences(text).filter((s) => PREVIEW.test(s));
+  {
     for (const t of TOPIC_TERMS) {
-      if (t.module > moduleOrder && t.pattern.test(plain)) {
+      if (t.module > moduleOrder && t.pattern.test(plain) && !previews.some((s) => t.pattern.test(s))) {
         issues.push({ level: 'error', where, message: `uses "${t.label}" (taught in Module ${t.module}) without a "you will learn" preview.` });
       }
     }
@@ -48,6 +49,7 @@ function checkLesson(issues: Issue[], l: Lesson, order: number, input: ContentIn
   const w = `lesson ${l.id}`;
   if (!ID.test(l.id)) issues.push({ level: 'error', where: w, message: 'id must be lowercase kebab-case.' });
   required(issues, w, { title: l.title, summary: l.summary, example: l.example, everyday: l.everyday, deep: l.deep, 'spot.size': l.spot.size, 'spot.words': l.spot.words, 'spot.shape': l.spot.shape, 'spot.bottleneck': l.spot.bottleneck, 'template.title': l.template.title, 'template.java': l.template.java });
+  if (PLACEHOLDER.test(l.template.java)) issues.push({ level: 'error', where: w, message: 'template java contains placeholder text.' });
   if (l.steps.length < 3 || l.steps.length > 6) issues.push({ level: 'error', where: w, message: `needs 3 to 6 steps, has ${l.steps.length}.` });
   if (l.quiz.length !== 3) issues.push({ level: 'error', where: w, message: `needs exactly 3 quiz questions, has ${l.quiz.length}.` });
   l.quiz.forEach((q, i) => {
@@ -70,6 +72,7 @@ function checkLesson(issues: Issue[], l: Lesson, order: number, input: ContentIn
     ...l.steps.map((s, i): [string, string] => [`step ${i + 1}`, `${s.title}. ${s.text}`]),
     ['spot.size', l.spot.size], ['spot.words', l.spot.words], ['spot.shape', l.spot.shape], ['spot.bottleneck', l.spot.bottleneck],
     ...l.traps.map((t, i): [string, string] => [`trap ${i + 1}`, `${t.looksLike} ${t.butIs} ${t.why}`]),
+    ...l.complexityFacts.map((f, i): [string, string] => [`complexity fact ${i + 1}`, `${f.q} ${f.a} ${f.why}`]),
     ...l.realLife.map((r, i): [string, string] => [`realLife ${i + 1}`, r.text]),
     ...l.mistakes.map((m, i): [string, string] => [`mistake ${i + 1}`, m]),
     ...l.interview.map((m, i): [string, string] => [`interview ${i + 1}`, m]),
@@ -112,6 +115,7 @@ function checkProblem(issues: Issue[], p: Problem, order: number, input: Content
     const aw = `${w} ${a.level}`;
     required(issues, aw, { title: a.title, idea: a.idea, java: a.java, time: a.time, space: a.space });
     if (i < p.approaches.length - 1 && !a.nextStepRemoves) issues.push({ level: 'error', where: aw, message: 'needs "nextStepRemoves".' });
+    if (PLACEHOLDER.test(a.java)) issues.push({ level: 'error', where: aw, message: 'java contains placeholder text.' });
     try { parseMarkers(a.java); } catch (err) { issues.push({ level: 'error', where: aw, message: String(err) }); }
     if (a.traceId && !input.traces.some((t) => t.id === a.traceId)) issues.push({ level: 'error', where: aw, message: `uses unknown trace "${a.traceId}".` });
     if (!a.java.includes('class Solution')) issues.push({ level: 'error', where: aw, message: 'java must define class Solution.' });
@@ -168,6 +172,14 @@ function checkModule(issues: Issue[], m: Module, input: ContentInput) {
     if (!p) issues.push({ level: 'error', where: w, message: `lists unknown problem "${id}".` });
     else if (p.moduleId !== m.id) issues.push({ level: 'error', where: w, message: `problem "${id}" says it belongs to "${p.moduleId}".` });
   }
+  const texts: [string, string][] = [
+    ['summary', m.summary],
+    ...m.outcomes.map((o, i): [string, string] => [`outcome ${i + 1}`, o]),
+    ...m.quiz.map((q, i): [string, string] => [`quiz ${i + 1}`, 'options' in q ? `${q.q} ${q.options.join('. ')}. ${q.why}` : `${q.q} ${q.answer}`]),
+    ...m.cheatsheet.flatMap((c, i): [string, string][] => [[`cheatsheet ${i + 1} heading`, c.h], ...c.items.map((x, k): [string, string] => [`cheatsheet ${i + 1} item ${k + 1}`, x])]),
+    ...m.glossary.map((g, i): [string, string] => [`glossary ${i + 1}`, g.def]),
+  ];
+  for (const [name, text] of texts) prose(issues, `${w} ${name}`, text, m.order);
   if (m.status === 'complete') {
     const mcq = m.quiz.filter((q) => !('type' in q)).length;
     const scenario = m.quiz.length - mcq;

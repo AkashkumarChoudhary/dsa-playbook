@@ -6,7 +6,13 @@ export function stripHtml(s: string): string {
     .replace(/<code[\s\S]*?<\/code>/gi, '')
     .replace(/<\/(p|li|h[1-6]|div|tr|td|th)>|<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
-    .replace(/&(#?\w+);/g, (m, name: string) => ENTITIES[name] ?? m)
+    .replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (_m, name: string) => {
+      if (name.startsWith('#')) {
+        const code = name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+        try { return String.fromCodePoint(code); } catch { return ' '; }
+      }
+      return ENTITIES[name] ?? ' ';
+    })
     .split('\n')
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter((line) => line !== '')
