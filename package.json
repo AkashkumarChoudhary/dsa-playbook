@@ -1,0 +1,49 @@
+{
+  "name": "dsa-playbook",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "check:content": "vitest run -c vitest.tools.config.ts content-check",
+    "verify:java": "vitest run -c vitest.tools.config.ts verify-java",
+    "e2e": "playwright test",
+    "test:e2e": "npm run build && playwright test",
+    "ci": "npm run typecheck && npm run check:content && npm test && npm run verify:java && npm run test:e2e"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AkashkumarChoudhary/dsa-playbook.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/AkashkumarChoudhary/dsa-playbook/issues"
+  },
+  "homepage": "https://github.com/AkashkumarChoudhary/dsa-playbook#readme",
+  "private": "true",
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "codemirror": "^6.0.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.2",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
