@@ -1,0 +1,9 @@
+pre.code { position: relative; margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0; overflow: auto; font-family: var(--mono); font-size: 0.85rem; line-height: 1.5; max-height: 24rem; }
+pre.code code { background: none; padding: 0; font-size: inherit; display: block; min-width: max-content; }
+pre.code .ln { display: block; padding: 0 0.9rem; white-space: pre; border-left: 3px solid transparent; transition: background-color var(--dur); }
+pre.code .ln.active { background: color-mix(in srgb, var(--accent) 22%, transparent); border-left-color: var(--accent); }
+.tok-keyword, .tok-modifier { color: var(--tok-keyword); }
+.tok-string { color: var(--tok-string); }
+.tok-number, .tok-bool, .tok-atom { color: var(--tok-number); }
+.tok-comment { color: var(--tok-comment); font-style: italic; }
+.tok-typeName, .tok-className, .tok-namespace { color: var(--tok-type); }

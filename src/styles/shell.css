@@ -1,0 +1,26 @@
+.topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; color: var(--text); text-decoration: none; font-size: 1.05rem; }
+.topbar .spacer { flex: 1; }
+.menu-btn { display: inline-flex; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); }
+.sidebar { position: fixed; inset: 3.3rem auto 0 0; width: min(18rem, 85vw); background: var(--bg-2); border-right: 1px solid var(--line); padding: 1rem; overflow-y: auto; transform: translateX(-105%); transition: transform var(--dur) ease; z-index: 15; }
+body.nav-open .sidebar { transform: none; }
+.sidebar h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 1rem 0 0.3rem; }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar a { display: block; padding: 0.3rem 0.5rem; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 0.95rem; }
+.sidebar a[aria-current='page'] { background: var(--accent); color: var(--on-accent); }
+.sidebar .module-link { font-weight: 600; }
+main.outlet { padding: 1.25rem 1rem 4rem; max-width: 56rem; width: 100%; margin: 0 auto; min-width: 0; outline: none; }
+@media (min-width: 1000px) {
+  .menu-btn { display: none; }
+  .layout { grid-template-columns: 17rem minmax(0, 1fr); }
+  .sidebar { position: sticky; top: 3.3rem; height: calc(100vh - 3.3rem); transform: none; width: auto; }
+}
+.hero p { font-size: 1.1rem; color: var(--muted); max-width: 40rem; }
+.module-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+.module-card h3 { margin: 0.2rem 0; }
+.module-card a { text-decoration: none; }
+.how-list { display: grid; gap: 0.5rem; padding-left: 1.2rem; }
+.item-list { list-style: none; padding: 0; display: grid; gap: 0.5rem; }
+.item-list a { display: block; }
+.tag { display: inline-block; font-size: 0.75rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
