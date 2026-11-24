@@ -122,12 +122,19 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
     consoleEl.textContent = result.stdout;
   }
 
+  let cancelled = false;
+
   async function run(mode: 'samples' | 'all') {
+    cancelled = false;
     busy(true);
     status.textContent = 'Getting Java ready…';
-    await deps.runner.ready((msg) => { status.textContent = msg; });
-    status.textContent = mode === 'all' ? 'Running all tests…' : 'Running the examples…';
     try {
+      await deps.runner.ready((msg) => { status.textContent = msg; });
+      if (cancelled) {
+        status.textContent = 'Stopped.';
+        return;
+      }
+      status.textContent = mode === 'all' ? 'Running all tests…' : 'Running the examples…';
       const result = await deps.runner.run({ code: editor.getValue(), spec: problem.spec, mode, extraTests: [...custom], timeLimitMs: mode === 'all' ? 10_000 : 5_000 });
       show(result);
     } catch (err) {
@@ -139,7 +146,10 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
 
   runBtn.addEventListener('click', () => void run('samples'));
   submitBtn.addEventListener('click', () => void run('all'));
-  stopBtn.addEventListener('click', () => deps.runner.stop());
+  stopBtn.addEventListener('click', () => {
+    cancelled = true;
+    deps.runner.stop();
+  });
   resetBtn.addEventListener('click', () => {
     if (confirmFn('Reset to the starter code? Your code will be replaced.')) editor.setValue(problem.starter);
   });

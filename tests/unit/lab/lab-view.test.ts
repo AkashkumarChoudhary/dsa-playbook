@@ -98,4 +98,31 @@ describe('mountLab', () => {
     await flush();
     expect(runner.last?.extraTests).toEqual([{ id: 'c1', args: [[1, 2]], expected: false }]);
   });
+
+  it('recovers when ready() rejects', async () => {
+    const host = document.createElement('div');
+    const runner: JavaRunner = { ready: async () => { throw new Error('download failed'); }, run: vi.fn(), stop: vi.fn() };
+    mountLab(host, problem, { runner, store: memStore(), makeEditor: fakeEditor().make });
+    (host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).click();
+    await flush();
+    expect((host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).disabled).toBe(false);
+    expect(host.querySelector('[data-testid="lab-status"]')!.textContent).toContain('download failed');
+  });
+
+  it('does not run if Stop is clicked while Java loads', async () => {
+    const host = document.createElement('div');
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const run = vi.fn();
+    const runner: JavaRunner = { ready: () => gate, run, stop: vi.fn() };
+    mountLab(host, problem, { runner, store: memStore(), makeEditor: fakeEditor().make });
+    (host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).click();
+    (host.querySelector('[data-testid="lab-stop"]') as HTMLButtonElement).click();
+    release();
+    await flush();
+    expect(run).not.toHaveBeenCalled();
+    expect(runner.stop).toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="lab-status"]')!.textContent).toContain('Stopped');
+    expect((host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).disabled).toBe(false);
+  });
 });
