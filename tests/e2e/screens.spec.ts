@@ -11,7 +11,15 @@ for (const theme of ['dark', 'light'] as const) {
       }, theme);
       for (const [name, route] of pages) {
         await page.goto(`./${route}`);
-        await page.waitForTimeout(400);
+        await expect(page.locator('main h1')).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        expect(await page.evaluate(() => document.documentElement.dataset.theme), `${name} theme`).toBe(theme);
+        if (name === 'problem') {
+          // CodeMirror measures its lines only when it is on screen. Scroll to it like a learner would.
+          await page.locator('.lab').scrollIntoViewIfNeeded();
+          await expect(page.locator('.cm-lineNumbers .cm-gutterElement').nth(1)).toHaveCSS('height', /^(19|20|21)\./);
+          await page.evaluate(() => window.scrollTo(0, 0));
+        }
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(overflow, `${name} ${theme} ${width}`).toBeLessThanOrEqual(0);
         await page.screenshot({ path: `test-results/screens/${name}-${theme}-${width}.png`, fullPage: true });
