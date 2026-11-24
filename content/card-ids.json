@@ -1,0 +1,14 @@
+{
+  "brute-better-optimal:bigo-0": "HashSet add or contains: how fast?",
+  "brute-better-optimal:bigo-1": "Checking every pair of n numbers?",
+  "brute-better-optimal:bigo-2": "Putting n numbers in order with Arrays.sort?",
+  "brute-better-optimal:reallife-0": "A sign-up form checks if a username is taken. It looks in a set of names, not th",
+  "brute-better-optimal:reallife-1": "Java’s HashSet keeps values in buckets chosen by hash code. Add and contains tak",
+  "brute-better-optimal:template": "Write the template: Seen before? Use a HashSet",
+  "brute-better-optimal:trap-0": "\"Find the duplicate number\", but you may not change the array or use extra memor",
+  "brute-better-optimal:trap-1": "\"Are two equal numbers at most k places apart?\" Which idea fits?",
+  "contains-duplicate:edges": "Contains Duplicate: name the edge cases.",
+  "contains-duplicate:explain": "Contains Duplicate: explain the answer in 30 seconds.",
+  "contains-duplicate:hook": "Contains Duplicate: what is the memory hook?",
+  "contains-duplicate:spot": "You get an array of whole numbers called . The numbers can be negative. Return i"
+}
