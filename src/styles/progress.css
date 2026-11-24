@@ -11,3 +11,10 @@
 .scenario p { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
 .scenario-answer:not([hidden]) { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .scenario-answer p { flex-basis: 100%; }
+
+
+/* The "Your progress" box on a problem page */
+.your-progress h2 { margin-top: 0; }
+.tracker-level { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0 0 0.4rem; }
+.tracker-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.tracker-buttons button[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }

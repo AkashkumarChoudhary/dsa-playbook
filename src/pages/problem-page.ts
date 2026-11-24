@@ -4,13 +4,20 @@ import { href } from '../core/router';
 import { codeBlock } from '../engine/highlight';
 import { parseMarkers } from '../engine/markers';
 import { mountVizGroup } from '../engine/player-view';
+import { openProblem, passSubmit, revealSolutions } from '../engine/progress';
+import { allTestsPassed } from '../engine/tracker';
 import { mountLab } from '../lab/lab-view';
+import { clockOf } from './clock';
 import type { PageContext } from './router-view';
 import { mountSpotFirst } from './spot-first';
+import { mountTracker } from './tracker';
 
 const LEVEL_LABEL = { brute: '🐢 Brute force', better: '🚶 Better', optimal: '🚀 Optimal' } as const;
 
 export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageContext): () => void {
+  const now = clockOf(ctx);
+  ctx.store.update((d) => openProblem(d, problem.id, now()));
+  const lists = problem.sheets.map((id) => ctx.registry.sheet(id)).filter((s) => s !== undefined);
   const link = (l: { title: string; why: string; id?: string }) =>
     html`<li>${l.id ? html`<a href="${href({ name: 'problem', id: l.id })}">${l.title}</a>` : html`<b>${l.title}</b> <span class="tag">coming later</span>`} <span class="muted">${l.why}</span></li>`;
   render(host, html`
@@ -22,6 +29,7 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
         <h3>Limits</h3><ul>${problem.limits.map((l) => html`<li><code>${l}</code></li>`)}</ul>
         <h3>Examples</h3><ul>${problem.examples.map((e) => html`<li><code>${e.input}</code> → <code>${e.output}</code>${e.note ? html` <span class="muted">${e.note}</span>` : null}</li>`)}</ul>
         <p><a href="${problem.source.url}" target="_blank" rel="noopener">Open on ${problem.source.name}</a></p>
+        ${lists.length ? html`<p class="muted">On these lists: ${lists.map((s, i) => html`${i ? ', ' : ''}<a href="${href({ name: 'sheet', id: s.id })}">${s.title}</a>`)}.</p>` : null}
       </section>
 
       <section id="spot"><h2>🔍 Spot it first</h2><div class="spot-host"></div></section>
@@ -32,6 +40,8 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
       </section>
 
       <section id="lab"><h2>🧪 Try it yourself</h2><div class="lab-host"></div></section>
+
+      <section id="progress" class="your-progress card"><h2>📈 Your progress</h2><div class="tracker-host"></div></section>
 
       <section id="edge-cases"><h2>⚠️ Edge cases</h2><ul>${problem.edgeCases.map((e) => html`<li>${e}</li>`)}</ul></section>
 
@@ -75,7 +85,15 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
     </article>`);
 
   const disposeSpot = mountSpotFirst(host.querySelector('.spot-host') as HTMLElement, problem.spot);
-  const lab = mountLab(host.querySelector('.lab-host') as HTMLElement, problem, { runner: ctx.runner, store: ctx.store, makeEditor: ctx.makeEditor });
+  const lab = mountLab(host.querySelector('.lab-host') as HTMLElement, problem, {
+    runner: ctx.runner,
+    store: ctx.store,
+    makeEditor: ctx.makeEditor,
+    onSubmitResult: (result) => {
+      if (allTestsPassed(result)) ctx.store.update((d) => passSubmit(d, problem.id, now()));
+    },
+  });
+  const disposeTracker = mountTracker(host.querySelector('.tracker-host') as HTMLElement, problem, ctx);
 
   const hints = [...host.querySelectorAll<HTMLElement>('.hint')];
   const hintBtn = host.querySelector<HTMLButtonElement>('[data-testid="hint-next"]') as HTMLButtonElement;
@@ -105,6 +123,7 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
   const solutions = host.querySelector<HTMLElement>('#solutions') as HTMLElement;
   const gateBtn = host.querySelector<HTMLButtonElement>('[data-testid="show-solutions"]') as HTMLButtonElement;
   gateBtn.addEventListener('click', () => {
+    ctx.store.update((d) => revealSolutions(d, problem.id, now()));
     solutions.hidden = false;
     if (optimal && trace && sample) disposeViz = mountVizGroup(vizHost, [{ label: optimal.title, trace, java: optimal.java, input: trace.fromArgs(sample.args) }]);
     else vizHost.textContent = 'No dry run for this problem yet.';
@@ -115,6 +134,7 @@ export function mountProblemPage(host: HTMLElement, problem: Problem, ctx: PageC
 
   return () => {
     disposeSpot();
+    disposeTracker();
     disposeViz();
     lab.dispose();
     host.innerHTML = '';

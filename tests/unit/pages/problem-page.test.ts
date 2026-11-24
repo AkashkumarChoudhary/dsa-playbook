@@ -5,6 +5,7 @@ import { buildRegistry } from '../../../src/core/registry';
 import { createStore } from '../../../src/core/store';
 import { createRecorder, type TraceDef } from '../../../src/engine/trace';
 import type { Problem } from '../../../src/content-types';
+import type { RunResult } from '../../../src/lab/runner';
 
 const spot = { prompt: 'Which idea fits?', options: ['Check pairs', 'Remember seen'], answer: 1, clues: [{ kind: 'size' as const, text: 'Big n.' }, { kind: 'bottleneck' as const, text: 'Repeated search.' }] };
 
@@ -100,6 +101,54 @@ describe('mountProblemPage', () => {
     const { host, dispose } = mount();
     expect(host.querySelector('[data-testid="show-solutions"]')).not.toBeNull();
     expect(() => dispose()).not.toThrow();
+    host.remove();
+  });
+});
+
+
+describe('problem progress (Part 1b)', () => {
+  const pass = { id: 'h', kind: 'hidden' as const, pass: true, input: '', expected: '', actual: '', stdout: '', timeMs: 1 };
+  function mountWith(result: RunResult) {
+    const registry = buildRegistry({ modules: [], lessons: [], problems: [problem], traces: [trace] });
+    const d: Record<string, string> = {};
+    const store = createStore({ getItem: (k) => d[k] ?? null, setItem: (k, v) => { d[k] = v; } });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const makeEditor = () => ({ getValue: () => 'class Solution {}', setValue() {}, focus() {}, destroy() {} });
+    const dispose = mountProblemPage(host, problem, { registry, makeEditor, store, runner: { ready: async () => {}, run: async () => result, stop() {} }, now: () => 5000 });
+    return { host, store, dispose };
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it('records the open and the first peek, and has a progress box', () => {
+    const { host, store, dispose } = mountWith({ kind: 'tests', results: [pass], stdout: '' });
+    expect(store.get().problems.p?.openedAt).toBe(5000);
+    expect(host.querySelector('#progress [data-testid="track-level"]')).not.toBeNull();
+    (host.querySelector('[data-testid="show-solutions"]') as HTMLButtonElement).click();
+    expect(store.get().problems.p?.revealedAt).toBe(5000);
+    dispose();
+    host.remove();
+  });
+
+  it('sets level 2 when Submit passes before a peek', async () => {
+    const { host, store, dispose } = mountWith({ kind: 'tests', results: [pass], stdout: '' });
+    (host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).click();
+    await flush();
+    expect(store.get().problems.p?.solvedAt).toBeUndefined();
+    (host.querySelector('[data-testid="lab-submit"]') as HTMLButtonElement).click();
+    await flush();
+    expect(store.get().problems.p).toMatchObject({ solvedAt: 5000, marks: { solvedAlone: 5000 } });
+    expect(host.querySelector('[data-testid="track-level"]')!.textContent).toBe('Level 2 of 5: Solved alone');
+    dispose();
+    host.remove();
+  });
+
+  it('does not solve on a failing Submit', async () => {
+    const { host, store, dispose } = mountWith({ kind: 'tests', results: [{ ...pass, pass: false }], stdout: '' });
+    (host.querySelector('[data-testid="lab-submit"]') as HTMLButtonElement).click();
+    await flush();
+    expect(store.get().problems.p?.solvedAt).toBeUndefined();
+    dispose();
     host.remove();
   });
 });
