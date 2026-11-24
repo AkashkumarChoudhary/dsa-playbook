@@ -11,7 +11,7 @@ export const foundations: Module = {
   outcomes: [
     'Write a brute force and say its Big-O.',
     'Find the work a slow answer repeats.',
-    'Use a HashSet to answer "have I seen this before?" in about one step.',
+    'Use a HashSet to answer "have I seen this before?" in about one step on average.',
   ],
   lessonIds: ['brute-better-optimal'],
   problemIds: ['contains-duplicate'],

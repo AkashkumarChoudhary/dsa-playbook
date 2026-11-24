@@ -14,7 +14,7 @@ export const containsDuplicate: Problem = {
   core: true,
   sheets: ['neetcode150'],
   source: { name: 'LeetCode 217', url: 'https://leetcode.com/problems/contains-duplicate/' },
-  statement: '<p>You get an array of whole numbers called <code>nums</code>. Return <code>true</code> if any value appears at least twice. Return <code>false</code> if every value is different.</p>',
+  statement: '<p>You get an array of whole numbers called <code>nums</code>. The numbers can be negative. Return <code>true</code> if any value appears at least twice. Return <code>false</code> if every value is different.</p>',
   limits: ['1 ≤ nums.length ≤ 100,000', '-1,000,000,000 ≤ nums[i] ≤ 1,000,000,000'],
   examples: [
     { input: 'nums = [1, 2, 3, 1]', output: 'true', note: 'The number 1 appears twice.' },
@@ -28,7 +28,7 @@ export const containsDuplicate: Problem = {
       { kind: 'size', text: 'Up to 100,000 numbers. Checking every pair is about 5 billion checks, which is too slow.' },
       { kind: 'words', text: '"Any value appears twice" is really the question "have I seen this before?"' },
       { kind: 'shape', text: 'One unsorted list. The order of the numbers does not change the answer.' },
-      { kind: 'bottleneck', text: 'The slow way searches for an equal number again and again. A HashSet answers in one step.' },
+      { kind: 'bottleneck', text: 'The slow way searches for an equal number again and again. A HashSet answers in about one step on average.' },
     ],
   },
   hints: [
@@ -50,7 +50,7 @@ export const containsDuplicate: Problem = {
     {
       level: 'better',
       title: 'Sort, then check neighbours',
-      idea: 'Copy the array and put the copy in order. Equal numbers now sit side by side. One pass that compares each number with the one before it finds any repeat. You will learn how sorting works in Module 7.',
+      idea: 'Copy the array and put the copy in order. Equal numbers now sit side by side. One walk through the list that compares each number with the one before it finds any repeat. You will learn how sorting works in Module 7.',
       java: better,
       time: 'O(n log n)',
       space: 'O(n)',
@@ -59,7 +59,7 @@ export const containsDuplicate: Problem = {
     {
       level: 'optimal',
       title: 'Remember what you have seen',
-      idea: 'Walk the array once. Keep a HashSet of values seen so far. If the current value is already in the set, return true. Otherwise add it and move on.',
+      idea: 'Walk the array once. Keep a HashSet of values seen so far. If the current value is already in the set, return true. Otherwise add it and move on. On average, each add takes about one step.',
       java: optimal,
       time: 'O(n)',
       space: 'O(n)',
@@ -74,11 +74,11 @@ export const containsDuplicate: Problem = {
   ],
   mistakes: [
     'Starting the inner loop at j = 0. Then every number matches itself and the answer is always true.',
-    'Putting nums itself in order. That changes the caller’s array. Work on a copy instead.',
+    'Putting nums itself in order. That changes the array of whoever gave it to you. Work on a copy instead.',
     'Storing the index in the set instead of the value. Every index is different, so nothing ever repeats.',
   ],
   explain30:
-    'The simple way compares every pair. That is O(n²), which is too slow for 100,000 numbers. I only need to know if I have seen a value before. So I walk the array once with a HashSet. If adding a value fails, it was already there and I return true. That is O(n) time and O(n) space.',
+    'The simple way compares every pair. That is O(n²), which is too slow for 100,000 numbers. I only need to know if I have seen a value before. So I walk the array once with a HashSet. If add() returns false, it was already there and I return true. On average that is O(n) time, and it is O(n) space.',
   hook: 'Seen it before? Use a HashSet.',
   related: [
     { title: 'Valid Anagram', why: 'Also asks a "have I seen this?" question, but counts letters.' },

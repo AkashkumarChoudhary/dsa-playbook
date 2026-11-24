@@ -25,6 +25,7 @@ export const containsDuplicateBrute: TraceDef<Input> = {
     const rec = createRecorder();
     const arr = (pointers: ArrayView['pointers'], marks: ArrayView['marks']): ArrayView => ({ kind: 'array', id: 'nums', label: 'nums', values: nums, pointers, marks });
     let checks = 0;
+    const pairs = (nums.length * (nums.length - 1)) / 2;
     rec.step({ line: 'outer', vars: { i: '-', j: '-', checks: '0' }, views: [arr([], [])], note: `We will compare every pair. There are ${plural(nums.length, 'number')}.` });
     for (let i = 0; i < nums.length; i++) {
       for (let j = i + 1; j < nums.length; j++) {
@@ -33,13 +34,14 @@ export const containsDuplicateBrute: TraceDef<Input> = {
         const color: MarkColor = same ? 'answer' : 'current';
         const vars = { i: String(i), j: String(j), checks: String(checks) };
         const view = arr([{ name: 'i', index: i }, { name: 'j', index: j }], [{ index: i, color }, { index: j, color }]);
+        const start = j === i + 1 ? `i moved to ${i}. j starts right after it, so a number is never compared with itself. ` : '';
         rec.step({
           line: 'compare',
           vars,
           views: [view],
           note: same
-            ? `nums[${i}] is ${nums[i]} and nums[${j}] is ${nums[j]}. They are equal.`
-            : `Compare nums[${i}] = ${nums[i]} with nums[${j}] = ${nums[j]}. They are different.`,
+            ? `${start}nums[${i}] = ${nums[i]} and nums[${j}] = ${nums[j]}. They are equal, so we found a repeat.`
+            : `${start}nums[${i}] = ${nums[i]} and nums[${j}] = ${nums[j]}. They are different, so we try the next j.`,
         });
         if (same) {
           rec.step({ line: 'found', vars, views: [view], note: `We found a repeat. Return true after ${plural(checks, 'check')}.` });
@@ -47,7 +49,7 @@ export const containsDuplicateBrute: TraceDef<Input> = {
         }
       }
     }
-    rec.step({ line: 'none', vars: { i: '-', j: '-', checks: String(checks) }, views: [arr([], [])], note: `No pair matched after ${plural(checks, 'check')}. Return false.` });
+    rec.step({ line: 'none', vars: { i: '-', j: '-', checks: String(checks) }, views: [arr([], [])], note: `No pair matched. ${plural(nums.length, 'number')} make ${plural(pairs, 'pair')}. The work grows fast as the list grows. Return false.` });
     return rec.finish(false);
   },
 };
@@ -69,12 +71,12 @@ export const containsDuplicateOptimal: TraceDef<Input> = {
       const v = nums[k] as number;
       if (seen.includes(v)) {
         const vars = { num: String(v), 'seen size': String(seen.length) };
-        rec.step({ line: 'check', vars, views: [arr(k, 'answer'), set(String(v), 'answer')], note: `${v} is already in seen. We found a repeat.` });
+        rec.step({ line: 'check', vars, views: [arr(k, 'answer'), set(String(v), 'answer')], note: `${v} is already in seen, so add() returns false. We found a repeat.` });
         rec.step({ line: 'found', vars, views: [arr(k, 'answer'), set(String(v), 'answer')], note: 'Return true. We never had to look back at the list.' });
         return rec.finish(true);
       }
       seen.push(v);
-      rec.step({ line: 'check', vars: { num: String(v), 'seen size': String(seen.length) }, views: [arr(k, 'current'), set(String(v), 'current')], note: `${v} is not in seen yet. Add it and move on.` });
+      rec.step({ line: 'check', vars: { num: String(v), 'seen size': String(seen.length) }, views: [arr(k, 'current'), set(String(v), 'current')], note: `${v} was not in seen. add() puts it in and returns true, so we keep going.` });
     }
     rec.step({ line: 'none', vars: { num: '-', 'seen size': String(seen.length) }, views: [arr(null, 'current'), set()], note: 'We reached the end with no repeat. Return false.' });
     return rec.finish(false);
