@@ -1,0 +1,31 @@
+import type { CatalogModule } from '../../src/content-types';
+
+/** All 26 modules from spec §5. `part` is the build part from spec §15 and the problem map. */
+export const catalogModules: CatalogModule[] = [
+  { id: 'foundations', order: 1, level: 'basics', icon: '🧱', title: 'Foundations', part: '1c' },
+  { id: 'arrays-strings', order: 2, level: 'basics', icon: '📦', title: 'Arrays & Strings', part: '2' },
+  { id: 'hashing', order: 3, level: 'basics', icon: '#️⃣', title: 'Hashing', part: '2' },
+  { id: 'two-pointers', order: 4, level: 'basics', icon: '👉', title: 'Two Pointers', part: '3' },
+  { id: 'sliding-window', order: 5, level: 'basics', icon: '🪟', title: 'Sliding Window', part: '3' },
+  { id: 'recursion-basics', order: 6, level: 'basics', icon: '🔁', title: 'Recursion Basics', part: '4' },
+  { id: 'sorting', order: 7, level: 'basics', icon: '🔀', title: 'Sorting', part: '4' },
+  { id: 'binary-search', order: 8, level: 'core', icon: '🔎', title: 'Binary Search', part: '5' },
+  { id: 'stack-queue', order: 9, level: 'core', icon: '📚', title: 'Stack & Queue', part: '5' },
+  { id: 'linked-list', order: 10, level: 'core', icon: '🔗', title: 'Linked List', part: '6' },
+  { id: 'backtracking', order: 11, level: 'core', icon: '🧭', title: 'Backtracking', part: '6' },
+  { id: 'trees', order: 12, level: 'core', icon: '🌳', title: 'Trees', part: '7' },
+  { id: 'heap', order: 13, level: 'core', icon: '⛰️', title: 'Heap', part: '7' },
+  { id: 'tries', order: 14, level: 'core', icon: '🔤', title: 'Tries', part: '7' },
+  { id: 'graphs', order: 15, level: 'hard', icon: '🕸️', title: 'Graphs', part: '8' },
+  { id: 'advanced-graphs', order: 16, level: 'hard', icon: '🗺️', title: 'Advanced Graphs', part: '8' },
+  { id: 'dp-1d', order: 17, level: 'hard', icon: '🧮', title: '1-D DP', part: '9' },
+  { id: 'dp-2d', order: 18, level: 'hard', icon: '🔢', title: '2-D DP', part: '9' },
+  { id: 'greedy-intervals', order: 19, level: 'hard', icon: '💰', title: 'Greedy & Intervals', part: '10' },
+  { id: 'bits-math', order: 20, level: 'hard', icon: '➗', title: 'Bits & Math', part: '10' },
+  { id: 'range-queries', order: 21, level: 'advanced', icon: '📊', title: 'Range Queries', part: '11' },
+  { id: 'string-algorithms', order: 22, level: 'advanced', icon: '🧵', title: 'String Algorithms', part: '11' },
+  { id: 'advanced-dp', order: 23, level: 'advanced', icon: '🧠', title: 'Advanced DP', part: '12' },
+  { id: 'graph-algorithms-2', order: 24, level: 'advanced', icon: '🌐', title: 'Graph Algorithms II', part: '12' },
+  { id: 'more-patterns', order: 25, level: 'advanced', icon: '🧰', title: 'More Patterns', part: '13' },
+  { id: 'interview-meta', order: 26, level: 'interview', icon: '🎤', title: 'Interview & Meta', part: '14' },
+];
