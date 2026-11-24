@@ -8,7 +8,7 @@ export function mountQuiz(host: HTMLElement, questions: QuizQuestion[], onComple
     <fieldset class="quiz-question" data-index="${i}">
       <legend>${i + 1}. ${q.q}</legend>
       ${q.options.map((o, k) => html`<button type="button" class="quiz-option" data-q="${i}" data-k="${k}">${o}</button>`)}
-      <p class="quiz-feedback" aria-live="polite"></p>
+      <p class="quiz-feedback" tabindex="-1" aria-live="polite"></p>
     </fieldset>`)}
     <p class="quiz-score" aria-live="polite"></p>`);
   host.append(el);
@@ -28,7 +28,9 @@ export function mountQuiz(host: HTMLElement, questions: QuizQuestion[], onComple
       if (idx === q.answer) b.classList.add('right');
       else if (idx === k) b.classList.add('wrong');
     });
-    (fs.querySelector('.quiz-feedback') as HTMLElement).textContent = `${right ? '✅ Right.' : '❌ Not quite.'} ${q.why}`;
+    const feedback = fs.querySelector('.quiz-feedback') as HTMLElement;
+    feedback.textContent = `${right ? '✅ Right.' : '❌ Not quite.'} ${q.why}`;
+    feedback.focus();
     if (answered.size === questions.length) {
       const score = [...answered.values()].filter(Boolean).length;
       (el.querySelector('.quiz-score') as HTMLElement).textContent = `${score} of ${questions.length} right`;

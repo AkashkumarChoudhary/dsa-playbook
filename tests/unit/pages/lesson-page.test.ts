@@ -28,6 +28,18 @@ describe('mountQuiz', () => {
   });
 });
 
+describe('mountQuiz focus', () => {
+  it('moves focus to the feedback after an answer', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const dispose = mountQuiz(host, q);
+    host.querySelectorAll<HTMLButtonElement>('.quiz-option')[1]!.click();
+    expect(document.activeElement).toBe(host.querySelectorAll('.quiz-feedback')[0]);
+    dispose();
+    host.remove();
+  });
+});
+
 const trace: TraceDef = {
   id: 'p/optimal', maxSteps: 10, inputFields: [], parseInput: () => ({ ok: true, value: {} }), formatInput: () => ({}), fromArgs: () => ({}),
   run: () => { const r = createRecorder(); r.step({ line: 'a', vars: { x: '1' }, views: [], note: 'Hello step.' }); return r.finish(1); },
