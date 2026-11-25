@@ -34,5 +34,6 @@
 /* Settings */
 .theme-choice { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .theme-choice label { display: inline-flex; gap: 0.4rem; align-items: center; min-height: 2.25rem; }
-.import-label { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-weight: 600; }
-.import-label input { max-width: 100%; }
+/* A block flex box gives the file input a real width to shrink to. Some fonts make it 400 px wide. */
+.import-label { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-weight: 600; }
+.import-label input { min-width: 0; max-width: 100%; }
