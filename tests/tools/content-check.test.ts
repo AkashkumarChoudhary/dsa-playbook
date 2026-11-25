@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { contentInput } from '../../content';
-import type { Lesson, Module, Problem } from '../../src/content-types';
+import type { Catalog, DrillItem, Lesson, Module, Problem } from '../../src/content-types';
+import { buildRegistry } from '../../src/core/registry';
 import { createRecorder, type TraceDef } from '../../src/engine/trace';
-import { checkContent, formatIssues } from '../../tools/content-check';
+import { cardFingerprints, readCardLock } from '../../tools/card-lock';
+import { checkCardIds, checkContent, formatIssues } from '../../tools/content-check';
 import { countWords, sentences, stripHtml } from '../../tools/text';
 
 describe('text helpers', () => {
@@ -144,9 +146,83 @@ describe('checkContent raw HTML', () => {
   });
 });
 
+describe('catalog, drill and card checks (Part 1b)', () => {
+  const catalog = (): Catalog => ({
+    modules: [{ id: 'm', order: 1, level: 'basics', icon: '🧱', title: 'M', part: '1c' }],
+    lessons: [{ id: 'l', moduleId: 'm', title: 'L', minutes: 5, patternId: 'hashing' }],
+    patterns: [{ id: 'hashing', moduleId: 'm', lessonId: 'l', title: 'HashSet' }],
+    problems: [{ id: 'p', title: 'P', moduleId: 'm', difficulty: 'easy', patternIds: ['hashing'], sheets: [], url: 'https://leetcode.com/problems/x/', core: true }],
+    sheets: [],
+  });
+  const drill = (): DrillItem => ({ id: 'd1', kind: 'reallife', prompt: '<p>A plain work task.</p>', acceptedPatternIds: ['hashing'], clueExplanation: 'Words: seen before.', moduleId: 'm' });
+  const full = () => ({ ...fixture(), catalog: catalog(), drills: [drill()] });
+  const msgs = (f: ReturnType<typeof full>) => checkContent(f).filter((i) => i.level === 'error').map((i) => `${i.where}: ${i.message}`).join('\n');
+
+  it('accepts a matching catalog', () => {
+    expect(msgs(full())).toBe('');
+  });
+  it('needs every built item in the catalog, with the same facts', () => {
+    const f = full();
+    f.catalog.lessons = [];
+    f.catalog.patterns = [];
+    f.catalog.problems[0]!.patternIds = [];
+    expect(msgs(f)).toContain('lesson l: is not in the catalog');
+    const g = full();
+    g.problems[0]!.patternIds = ['other'];
+    g.problems[0]!.sheets = ['neetcode150'];
+    g.problems[0]!.core = false;
+    const m = msgs(g);
+    expect(m).toContain('problem p: patternIds must match the catalog (hashing)');
+    expect(m).toContain('problem p: sheets must match the catalog (none)');
+    expect(m).toContain('problem p: core must match the catalog (true)');
+    const h = full();
+    h.problems[0]!.id = 'q';
+    h.modules[0]!.problemIds = ['q'];
+    h.lessons[0]!.problemIds = ['q'];
+    expect(msgs(h)).toContain('problem q: is not in the catalog');
+  });
+  it('needs a core problem for every pattern', () => {
+    const f = full();
+    f.catalog.problems[0]!.core = false;
+    f.problems[0]!.core = false;
+    expect(msgs(f)).toContain('catalog pattern hashing: needs at least 1 core problem.');
+  });
+  it('checks sheets', () => {
+    const f = full();
+    f.catalog.sheets = [{ id: 'neetcode150', title: 'NeetCode 150', credit: 'c', problemIds: ['p', 'ghost'] }];
+    const m = msgs(f);
+    expect(m).toContain('sheet neetcode150: lists unknown problem "ghost".');
+    expect(m).toContain('sheet neetcode150: lists "p", but that problem does not name this sheet.');
+    expect(m).toContain('sheet neetcode150: must have exactly 150 problems, has 2.');
+  });
+  it('checks drill items', () => {
+    const f = full();
+    f.drills[0]!.clueExplanation = 'Use it — always; trust me.';
+    f.drills[0]!.acceptedPatternIds = ['ghost'];
+    f.drills.push({ ...drill(), prompt: '<p>Use a sliding window here.</p>' });
+    const m = msgs(f);
+    expect(m).toContain('drill d1 clueExplanation: uses an em dash');
+    expect(m).toContain('drill d1 clueExplanation: uses a semicolon');
+    expect(m).toContain('drill d1: accepts unknown pattern "ghost".');
+    expect(m).toContain('drill d1: duplicate id.');
+    expect(m).toContain('drill d1 prompt: uses "sliding window" (taught in Module 5)');
+  });
+  it('warns when card ids change', () => {
+    const cards = buildRegistry(full()).cards;
+    const lock: Record<string, string> = { ...cardFingerprints(cards), 'l:trap-9': 'Gone.' };
+    lock['l:trap-0'] = 'Something else.';
+    delete lock['p:hook'];
+    const warns = checkCardIds(cards, lock).map((i) => `${i.level} ${i.where}: ${i.message}`).join('\n');
+    expect(warns).toContain('warn card l:trap-9: is gone');
+    expect(warns).toContain('warn card l:trap-0: now shows a different item');
+    expect(warns).toContain('warn card p:hook: is new');
+    expect(checkCardIds(cards, cardFingerprints(cards))).toEqual([]);
+  });
+});
+
 describe('real content', () => {
   it('has no content errors', () => {
-    const issues = checkContent(contentInput);
+    const issues = checkContent(contentInput, { cardLock: readCardLock() });
     const warnings = issues.filter((i) => i.level === 'warn');
     if (warnings.length) console.warn(formatIssues(warnings));
     expect(formatIssues(issues.filter((i) => i.level === 'error'))).toBe('');

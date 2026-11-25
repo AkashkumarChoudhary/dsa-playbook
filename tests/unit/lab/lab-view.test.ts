@@ -218,3 +218,31 @@ describe('mountLab', () => {
     vi.unstubAllGlobals();
   });
 });
+
+
+describe('Part 1b lab hooks', () => {
+  it('saves a pending edit when the page is hidden', () => {
+    vi.useFakeTimers();
+    const store = memStore();
+    const ed = fakeEditor();
+    const lab = mountLab(document.createElement('div'), problem, { runner: fakeRunner({ kind: 'tests', results: [], stdout: '' }), store, makeEditor: ed.make });
+    ed.type('class Solution { /* closing the tab */ }');
+    window.dispatchEvent(new Event('pagehide'));
+    expect(store.get().code['contains-duplicate']?.source).toBe('class Solution { /* closing the tab */ }');
+    lab.dispose();
+    vi.useRealTimers();
+  });
+
+  it('reports Submit results, not Run results', async () => {
+    const host = document.createElement('div');
+    const seen: RunResult[] = [];
+    const result: RunResult = { kind: 'tests', stdout: '', results: [] };
+    mountLab(host, problem, { runner: fakeRunner(result), store: memStore(), makeEditor: fakeEditor().make, onSubmitResult: (r) => seen.push(r) });
+    (host.querySelector('[data-testid="lab-run"]') as HTMLButtonElement).click();
+    await flush();
+    expect(seen).toEqual([]);
+    (host.querySelector('[data-testid="lab-submit"]') as HTMLButtonElement).click();
+    await flush();
+    expect(seen).toEqual([result]);
+  });
+});

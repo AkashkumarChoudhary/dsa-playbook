@@ -30,6 +30,7 @@ jobs:
           java-version: 21
       - run: npm ci
       - run: node scripts/fetch-teavm.mjs --check
+      - run: npm run check:catalog
       - run: npm run typecheck
       - run: npm run check:content
       - run: npm test

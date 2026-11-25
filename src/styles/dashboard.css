@@ -1,0 +1,23 @@
+/* Part 1b: the dashboard. Status colors keep white text at AA contrast in both themes. */
+:root { --status-fading: #c2410c; }
+.dash-headline { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 1.05rem; font-weight: 600; }
+.counter-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); }
+.counter-label { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.counter-value { margin: 0.2rem 0 0; font-size: 1.15rem; font-weight: 700; }
+.level-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 0.25rem 0.6rem; align-items: center; margin-bottom: 0.5rem; }
+.level-row .muted { grid-column: 2; font-size: 0.9rem; }
+.level-row progress { width: 100%; height: 0.8rem; accent-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; }
+.pattern-map { list-style: none; padding: 0; margin: 0 0 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.pattern-box { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 0.85rem; text-decoration: none; overflow-wrap: anywhere; transition: background-color var(--dur) ease; }
+.pattern-box[data-status='learning'] { background: var(--mark-current); border-color: var(--mark-current); color: #fff; }
+.pattern-box[data-status='practicing'] { background: var(--mark-range); border-color: var(--mark-range); color: #fff; }
+.pattern-box[data-status='mastered'] { background: var(--mark-answer); border-color: var(--mark-answer); color: #fff; }
+.pattern-box[data-status='fading'] { background: var(--status-fading); border-color: var(--status-fading); color: #fff; }
+.activity-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 0.85rem); grid-auto-columns: 0.85rem; gap: 3px; max-width: 100%; overflow-x: auto; }
+.activity-grid span { border-radius: 2px; background: var(--bg-2); border: 1px solid var(--line); }
+.activity-grid span[data-level='1'] { background: color-mix(in srgb, var(--accent) 40%, var(--bg-2)); }
+.activity-grid span[data-level='2'] { background: color-mix(in srgb, var(--accent) 70%, var(--bg-2)); }
+.activity-grid span[data-level='3'] { background: var(--accent); }
+.milestones { list-style: none; padding: 0; display: grid; gap: 0.3rem; }
+.milestones li[data-unlocked='false'] { color: var(--muted); }

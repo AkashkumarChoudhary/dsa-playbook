@@ -1,4 +1,6 @@
 import type { ContentInput } from '../src/core/registry';
+import { catalog } from './catalog';
+import { foundationsDrills } from './drills/foundations';
 import { bruteBetterOptimal } from './modules/01-foundations/lessons/brute-better-optimal';
 import { foundations } from './modules/01-foundations/module';
 import { containsDuplicate } from './modules/01-foundations/problems/contains-duplicate/problem';
@@ -9,4 +11,6 @@ export const contentInput: ContentInput = {
   lessons: [bruteBetterOptimal],
   problems: [containsDuplicate],
   traces: [containsDuplicateBrute, containsDuplicateOptimal],
+  catalog,
+  drills: [...foundationsDrills],
 };

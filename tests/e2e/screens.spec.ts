@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-const pages: [string, string][] = [['home', '#/'], ['lesson', '#/l/brute-better-optimal'], ['problem', '#/p/contains-duplicate']];
+const pages: [string, string][] = [
+  ['home', '#/'], ['lesson', '#/l/brute-better-optimal'], ['problem', '#/p/contains-duplicate'],
+  ['module', '#/m/foundations'], ['dashboard', '#/dashboard'], ['roadmap', '#/roadmap'], ['cards', '#/cards'],
+  ['drills', '#/drills'], ['sheet', '#/sheets/neetcode150'], ['settings', '#/settings'],
+];
 
 for (const theme of ['dark', 'light'] as const) {
   for (const width of [360, 1280]) {

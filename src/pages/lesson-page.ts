@@ -3,10 +3,24 @@ import { html, raw, render } from '../core/html';
 import { href } from '../core/router';
 import { codeBlock } from '../engine/highlight';
 import { mountVizGroup, type VizItem } from '../engine/player-view';
+import { openLesson, quizPassed, saveQuizScore } from '../engine/progress';
 import { mountQuiz } from '../engine/quiz';
+import { clockOf } from './clock';
 import type { PageContext } from './router-view';
 
+/** The line above the quiz: what is needed, or that the lesson is done. */
+function statusText(lesson: Lesson, ctx: PageContext): string {
+  const total = lesson.quiz.length;
+  const needed = Array.from({ length: total + 1 }, (_, k) => k).find((k) => quizPassed(k, total)) ?? total;
+  const p = ctx.store.get().lessons[lesson.id];
+  if (p?.passedAt !== undefined) return `✅ Lesson done. Your best score is ${p.bestScore} of ${p.total}.`;
+  const best = p && p.total > 0 ? `Your best score is ${p.bestScore} of ${p.total}. ` : '';
+  return `${best}Get ${needed} of ${total} right to finish this lesson.`;
+}
+
 export function mountLessonPage(host: HTMLElement, lesson: Lesson, ctx: PageContext): () => void {
+  const now = clockOf(ctx);
+  ctx.store.update((d) => openLesson(d, lesson.id, now()));
   const problems = lesson.problemIds.map((id) => ctx.registry.problem(id)).filter((p) => p !== undefined);
   render(host, html`
     <article class="lesson">
@@ -48,7 +62,9 @@ export function mountLessonPage(host: HTMLElement, lesson: Lesson, ctx: PageCont
       </section>
 
       <section id="try-it"><h2>🧪 Try it</h2>
+        <p class="lesson-status" data-testid="lesson-status" aria-live="polite"></p>
         <div class="quiz-host"></div>
+        <p><button type="button" data-testid="quiz-retry" hidden>↺ Try the quiz again</button></p>
         ${problems.length ? html`<h3>Practice problems</h3><ul class="item-list">${problems.map((p) => html`<li class="card"><a href="${href({ name: 'problem', id: p.id })}">🧪 ${p.title}</a> <span class="tag">${p.difficulty}</span></li>`)}</ul>` : null}
       </section>
     </article>`);
@@ -60,7 +76,26 @@ export function mountLessonPage(host: HTMLElement, lesson: Lesson, ctx: PageCont
     if (trace && approach) items.push({ label: v.label, trace, java: approach.java, input: v.input });
   }
   const disposeViz = items.length ? mountVizGroup(host.querySelector('.viz-host') as HTMLElement, items) : () => {};
-  const disposeQuiz = mountQuiz(host.querySelector('.quiz-host') as HTMLElement, lesson.quiz);
+  const statusEl = host.querySelector('[data-testid="lesson-status"]') as HTMLElement;
+  const retry = host.querySelector('[data-testid="quiz-retry"]') as HTMLButtonElement;
+  const quizHost = host.querySelector('.quiz-host') as HTMLElement;
+  statusEl.textContent = statusText(lesson, ctx);
+  let disposeQuiz = () => {};
+  const startQuiz = () => {
+    disposeQuiz();
+    retry.hidden = true;
+    disposeQuiz = mountQuiz(quizHost, lesson.quiz, (score) => {
+      ctx.store.update((d) => saveQuizScore(d, lesson.id, score, lesson.quiz.length, now()));
+      statusEl.textContent = statusText(lesson, ctx);
+      retry.hidden = false;
+    });
+  };
+  retry.addEventListener('click', () => {
+    startQuiz();
+    // The retry button hides itself, so move focus to the first answer.
+    quizHost.querySelector<HTMLElement>('.quiz-option')?.focus();
+  });
+  startQuiz();
   return () => {
     disposeViz();
     disposeQuiz();

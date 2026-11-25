@@ -1,0 +1,39 @@
+/* Part 1b: progress tags, links that look like buttons, module page and lesson status */
+.button { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2.25rem; padding: 0.4rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); color: var(--text); text-decoration: none; font-weight: 600; }
+.button:hover { border-color: var(--accent); }
+.button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.tag-done { color: var(--ok); border-color: var(--ok); }
+.tag-coming { font-style: italic; }
+.item-list li.planned { border-style: dashed; }
+.module-progress, .lesson-status { font-weight: 600; }
+.module-actions { margin: 0.75rem 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.scenarios { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+.scenario p { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+.scenario-answer:not([hidden]) { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.scenario-answer p { flex-basis: 100%; }
+
+
+/* The "Your progress" box on a problem page */
+.your-progress h2 { margin-top: 0; }
+.tracker-level { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0 0 0.4rem; }
+.tracker-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.tracker-buttons button[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* Today, roadmap and sheet pages */
+.today-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+.today-grid h2 { margin-top: 0; font-size: 1.15rem; }
+.today-grid ul { padding-left: 1.2rem; }
+.roadmap-level { display: grid; gap: 0.6rem; }
+.roadmap-module summary { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; }
+.roadmap-count { font-weight: 400; font-size: 0.9rem; flex-basis: 100%; }
+.roadmap-module h3 { font-size: 1rem; margin: 0.8rem 0 0.3rem; }
+.plain-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
+.plain-list li, .sheet-list li { overflow-wrap: anywhere; }
+.sheet-list { display: grid; gap: 0.35rem; padding-left: 2.2rem; }
+
+/* Settings */
+.theme-choice { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.theme-choice label { display: inline-flex; gap: 0.4rem; align-items: center; min-height: 2.25rem; }
+/* A block flex box gives the file input a real width to shrink to. Some fonts make it 400 px wide. */
+.import-label { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-weight: 600; }
+.import-label input { min-width: 0; max-width: 100%; }

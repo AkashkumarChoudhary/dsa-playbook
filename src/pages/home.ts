@@ -2,11 +2,14 @@ import { html, type SafeHtml } from '../core/html';
 import type { Registry } from '../core/registry';
 import { href } from '../core/router';
 
+/** The intro for a first-time visitor. Today (today.ts) shows it until there is progress. */
 export function renderHome(registry: Registry): SafeHtml {
+  const first = registry.modules[0];
   return html`
     <section class="hero">
       <h1>Learn DSA by spotting patterns</h1>
       <p>Watch each algorithm run step by step. Try first, then reveal. Write real Java in your browser.</p>
+      ${first ? html`<p><a class="button primary" data-testid="start" href="${href({ name: 'module', id: first.id })}">Start with ${first.title}</a></p>` : null}
     </section>
     <h2>How this site teaches</h2>
     <ul class="how-list">

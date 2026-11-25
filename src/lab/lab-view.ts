@@ -10,6 +10,8 @@ export interface LabDeps {
   store: Store;
   makeEditor?: typeof createEditor;
   confirm?: (msg: string) => boolean;
+  /** called after every Submit run, so the tracker can record a full pass */
+  onSubmitResult?: (result: RunResult) => void;
 }
 
 export interface LabHandle {
@@ -93,6 +95,8 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
     if (pendingCode !== null) saveCode(pendingCode);
     pendingCode = null;
   };
+  // A tab can close before the save timer fires. pagehide is the last safe moment to save.
+  window.addEventListener('pagehide', flushSave);
   let startedAt: number | null = null;
   let clockTimer: ReturnType<typeof setInterval> | null = null;
   const custom: TestCase[] = [];
@@ -157,6 +161,7 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
       status.textContent = mode === 'all' ? 'Running all tests…' : 'Running the examples…';
       const result = await deps.runner.run({ code: editor.getValue(), spec: problem.spec, mode, extraTests: [...custom], timeLimitMs: mode === 'all' ? 10_000 : 5_000 });
       show(result);
+      if (mode === 'all') deps.onSubmitResult?.(result);
     } catch (err) {
       status.textContent = `Something went wrong: ${err instanceof Error ? err.message : String(err)}`;
     } finally {
@@ -211,6 +216,7 @@ export function mountLab(host: HTMLElement, problem: Problem, deps: LabDeps): La
     dispose() {
       // A run still waiting for Java to load must not start after the learner leaves.
       cancelled = true;
+      window.removeEventListener('pagehide', flushSave);
       flushSave();
       if (clockTimer) clearInterval(clockTimer);
       deps.runner.stop();

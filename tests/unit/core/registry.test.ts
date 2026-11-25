@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { allRoutes, buildRegistry, type ContentInput } from '../../../src/core/registry';
-import type { Lesson, Module, Problem } from '../../../src/content-types';
+import type { Catalog, Lesson, Module, Problem } from '../../../src/content-types';
 import type { TraceDef } from '../../../src/engine/trace';
 
 const mod = (id: string, order: number): Module => ({
@@ -40,6 +40,72 @@ describe('buildRegistry', () => {
     expect(() => buildRegistry(i)).toThrow('Duplicate lesson id: l1');
   });
   it('lists every route', () => {
-    expect(allRoutes(buildRegistry(input()))).toEqual(['#/', '#/m/a', '#/m/b', '#/l/l1', '#/p/p1']);
+    expect(allRoutes(buildRegistry(input()))).toEqual([
+      '#/', '#/dashboard', '#/roadmap', '#/settings',
+      '#/drills', '#/drills/a', '#/drills/b',
+      '#/cards', '#/cards/due', '#/cards/weak', '#/cards/interview', '#/cards/module-a', '#/cards/module-b',
+      '#/m/a', '#/m/b', '#/l/l1', '#/p/p1',
+    ]);
+    const withSheet = buildRegistry({ ...input(), catalog: { modules: [], lessons: [], patterns: [], problems: [], sheets: [{ id: 'striver-bs', title: 'S', credit: 'c', problemIds: [] }] } });
+    expect(allRoutes(withSheet)).toContain('#/sheets/striver-bs');
+  });
+});
+
+describe('catalog merge', () => {
+  const catalog: Catalog = {
+    modules: [
+      { id: 'b', order: 2, level: 'basics', icon: '📦', title: 'B planned', part: '2' },
+      { id: 'a', order: 1, level: 'basics', icon: '🧱', title: 'A planned', part: '1c' },
+    ],
+    lessons: [
+      { id: 'l0', moduleId: 'b', title: 'Planned L0', minutes: 20 },
+      { id: 'l1', moduleId: 'b', title: 'Old title', minutes: 99, patternId: 'pat' },
+    ],
+    patterns: [{ id: 'pat', moduleId: 'b', lessonId: 'l1', title: 'A pattern' }],
+    problems: [
+      { id: 'p1', title: 'P1', moduleId: 'b', difficulty: 'easy', patternIds: ['pat'], sheets: ['neetcode150'], url: 'https://x/', core: true },
+      { id: 'p2', title: 'P2', moduleId: 'b', difficulty: 'hard', patternIds: ['pat'], sheets: [], url: 'https://y/', core: false },
+    ],
+    sheets: [{ id: 'neetcode150', title: 'NeetCode 150', credit: 'c', problemIds: ['p1'] }],
+  };
+  const realLesson = { id: 'l1', moduleId: 'b', title: 'L1', minutes: 15 } as unknown as Lesson;
+  const r = buildRegistry({ ...input(), lessons: [realLesson], catalog });
+
+  it('lists every catalog module in order and marks what is built', () => {
+    expect(r.roadmap.map((m) => [m.id, m.built])).toEqual([['a', true], ['b', true]]);
+    expect(r.roadmapModule('a')?.part).toBe('1c');
+  });
+  it('marks built lessons and problems, and uses the built title and minutes', () => {
+    expect(r.roadmapModule('b')!.lessons.map((l) => [l.id, l.built, l.title, l.minutes])).toEqual([['l0', false, 'Planned L0', 20], ['l1', true, 'L1', 15]]);
+    expect(r.roadmapProblem('p1')).toMatchObject({ built: true, part: '2', core: true });
+    expect(r.roadmapProblem('p2')).toMatchObject({ built: false, part: '2' });
+    expect(r.allLessons).toHaveLength(2);
+    expect(r.allProblems.map((p) => p.id)).toEqual(['p1', 'p2']);
+  });
+  it('finds patterns and sheets', () => {
+    expect(r.pattern('pat')?.lessonId).toBe('l1');
+    expect(r.sheet('neetcode150')?.problemIds).toEqual(['p1']);
+    expect(r.sheet('nope')).toBeUndefined();
+    expect(r.roadmapLesson('l0')?.built).toBe(false);
+  });
+  it('still lists a built item that the catalog misses', () => {
+    const extra = { id: 'p9', moduleId: 'b', title: 'P9', difficulty: 'medium', patternIds: [], core: false, source: { name: 'x', url: 'https://z/' }, approaches: [] } as unknown as Problem;
+    const r2 = buildRegistry({ ...input(), problems: [...input().problems, extra], catalog });
+    expect(r2.roadmapModule('b')!.problems.at(-1)).toMatchObject({ id: 'p9', built: true });
+  });
+  it('works with no catalog', () => {
+    const plain = buildRegistry(input());
+    expect(plain.roadmap.map((m) => m.id)).toEqual(['a', 'b']);
+    expect(plain.allLessons.map((l) => l.id)).toEqual(['l1']);
+    expect(plain.patterns).toEqual([]);
+  });
+  it('merges the real catalog with the real content', async () => {
+    const { contentInput } = await import('../../../content');
+    const real = buildRegistry(contentInput);
+    expect(real.roadmap).toHaveLength(26);
+    expect(real.allProblems).toHaveLength(319);
+    expect(real.allLessons.filter((l) => l.built).map((l) => l.id)).toEqual(['brute-better-optimal']);
+    expect(real.roadmapProblem('contains-duplicate')?.built).toBe(true);
+    expect(real.roadmapModule('hashing')).toMatchObject({ built: false, part: '2' });
   });
 });

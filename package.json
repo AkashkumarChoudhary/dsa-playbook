@@ -11,11 +11,14 @@
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
-    "check:content": "vitest run -c vitest.tools.config.ts content-check",
+    "check:content": "vitest run -c vitest.tools.config.ts content-check card-lock",
+    "check:catalog": "node scripts/build-catalog.mjs --check",
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "cards:lock": "CARDS_LOCK=write vitest run -c vitest.tools.config.ts card-lock",
     "verify:java": "vitest run -c vitest.tools.config.ts verify-java",
     "e2e": "playwright test",
     "test:e2e": "npm run build && playwright test",
-    "ci": "npm run typecheck && npm run check:content && npm test && npm run verify:java && npm run test:e2e"
+    "ci": "npm run typecheck && npm run check:catalog && npm run check:content && npm test && npm run verify:java && npm run test:e2e"
   },
   "repository": {
     "type": "git",

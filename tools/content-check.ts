@@ -1,7 +1,9 @@
-import type { Lesson, Module, Problem } from '../src/content-types';
-import { buildRegistry, type ContentInput } from '../src/core/registry';
+import type { Catalog, Lesson, Module, Problem } from '../src/content-types';
+import { buildRegistry, type ContentInput, type Registry } from '../src/core/registry';
+import type { Card } from '../src/engine/cards';
 import { parseMarkers } from '../src/engine/markers';
 import { argExpression, toJavaLiteral } from '../src/lab/java-literals';
+import { cardFingerprint } from './card-lock';
 import { countWords, sentences, stripHtml } from './text';
 import { TOPIC_TERMS } from './topic-order';
 
@@ -207,13 +209,140 @@ function checkModule(issues: Issue[], m: Module, input: ContentInput) {
   }
 }
 
-export function checkContent(input: ContentInput): Issue[] {
+const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
+
+function duplicates(ids: string[]): string[] {
+  const seen = new Set<string>();
+  return ids.filter((id) => (seen.has(id) ? true : (seen.add(id), false)));
+}
+
+/** The catalog on its own: ids, links between its parts, core problems and sheets. */
+function checkCatalog(issues: Issue[], c: Catalog) {
+  const kinds: [string, { id: string }[]][] = [['module', c.modules], ['lesson', c.lessons], ['pattern', c.patterns], ['problem', c.problems]];
+  for (const [kind, items] of kinds) {
+    for (const item of items) if (!ID.test(item.id)) issues.push({ level: 'error', where: `catalog ${kind} ${item.id}`, message: 'id must be lowercase kebab-case.' });
+    for (const id of duplicates(items.map((i) => i.id))) issues.push({ level: 'error', where: `catalog ${kind} ${id}`, message: 'duplicate id.' });
+  }
+  const moduleIds = new Set(c.modules.map((m) => m.id));
+  const patternById = new Map(c.patterns.map((p) => [p.id, p]));
+  for (const l of c.lessons) {
+    if (!moduleIds.has(l.moduleId)) issues.push({ level: 'error', where: `catalog lesson ${l.id}`, message: `unknown module "${l.moduleId}".` });
+    if (l.patternId && !patternById.has(l.patternId)) issues.push({ level: 'error', where: `catalog lesson ${l.id}`, message: `unknown pattern "${l.patternId}".` });
+  }
+  for (const p of c.patterns) {
+    const lesson = c.lessons.find((l) => l.id === p.lessonId);
+    if (!moduleIds.has(p.moduleId)) issues.push({ level: 'error', where: `catalog pattern ${p.id}`, message: `unknown module "${p.moduleId}".` });
+    if (!lesson || lesson.patternId !== p.id || lesson.moduleId !== p.moduleId) issues.push({ level: 'error', where: `catalog pattern ${p.id}`, message: `lesson "${p.lessonId}" must be in module "${p.moduleId}" and name this pattern.` });
+    if (!c.problems.some((x) => x.core && x.patternIds.includes(p.id))) issues.push({ level: 'error', where: `catalog pattern ${p.id}`, message: 'needs at least 1 core problem.' });
+  }
+  for (const p of c.problems) {
+    const w = `catalog problem ${p.id}`;
+    if (!moduleIds.has(p.moduleId)) issues.push({ level: 'error', where: w, message: `unknown module "${p.moduleId}".` });
+    if (p.patternIds.length < 1 || p.patternIds.length > 2) issues.push({ level: 'error', where: w, message: 'needs 1 or 2 patterns.' });
+    for (const id of p.patternIds) if (!patternById.has(id)) issues.push({ level: 'error', where: w, message: `unknown pattern "${id}".` });
+    if (!p.url.startsWith('https://')) issues.push({ level: 'error', where: w, message: 'url must start with https://.' });
+    for (const sheet of p.sheets) {
+      if (!c.sheets.find((s) => s.id === sheet)?.problemIds.includes(p.id)) issues.push({ level: 'error', where: w, message: `says it is on sheet "${sheet}", but that sheet does not list it.` });
+    }
+  }
+  const problemById = new Map(c.problems.map((p) => [p.id, p]));
+  for (const s of c.sheets) {
+    const w = `sheet ${s.id}`;
+    for (const id of s.problemIds) {
+      const p = problemById.get(id);
+      if (!p) issues.push({ level: 'error', where: w, message: `lists unknown problem "${id}".` });
+      else if (!p.sheets.includes(s.id)) issues.push({ level: 'error', where: w, message: `lists "${id}", but that problem does not name this sheet.` });
+    }
+    for (const id of duplicates(s.problemIds)) issues.push({ level: 'error', where: w, message: `lists "${id}" twice.` });
+    if (s.id === 'neetcode150' && s.problemIds.length !== 150) issues.push({ level: 'error', where: w, message: `must have exactly 150 problems, has ${s.problemIds.length}.` });
+  }
+}
+
+/** Every built module, lesson and problem must be in the catalog, with the same facts. */
+function checkBuiltAgainstCatalog(issues: Issue[], input: ContentInput, c: Catalog) {
+  for (const m of input.modules) {
+    const cm = c.modules.find((x) => x.id === m.id);
+    if (!cm) issues.push({ level: 'error', where: `module ${m.id}`, message: 'is not in the catalog (content/catalog/modules.ts).' });
+    else if (cm.order !== m.order || cm.level !== m.level) issues.push({ level: 'error', where: `module ${m.id}`, message: 'order and level must match the catalog.' });
+  }
+  for (const l of input.lessons) {
+    const cl = c.lessons.find((x) => x.id === l.id);
+    if (!cl) issues.push({ level: 'error', where: `lesson ${l.id}`, message: 'is not in the catalog (content/catalog/lessons.ts).' });
+    else if (cl.moduleId !== l.moduleId) issues.push({ level: 'error', where: `lesson ${l.id}`, message: `the catalog puts it in module "${cl.moduleId}".` });
+  }
+  for (const p of input.problems) {
+    const cp = c.problems.find((x) => x.id === p.id);
+    const w = `problem ${p.id}`;
+    if (!cp) { issues.push({ level: 'error', where: w, message: 'is not in the catalog. Add it to docs/curriculum/problem-map.md and run npm run build:catalog.' }); continue; }
+    if (cp.moduleId !== p.moduleId) issues.push({ level: 'error', where: w, message: `the catalog puts it in module "${cp.moduleId}".` });
+    if (!sameSet(cp.patternIds, p.patternIds)) issues.push({ level: 'error', where: w, message: `patternIds must match the catalog (${cp.patternIds.join(', ')}).` });
+    if (!sameSet(cp.sheets, p.sheets)) issues.push({ level: 'error', where: w, message: `sheets must match the catalog (${cp.sheets.join(', ') || 'none'}).` });
+    if (cp.difficulty !== p.difficulty) issues.push({ level: 'error', where: w, message: `difficulty must match the catalog (${cp.difficulty}).` });
+    if (cp.core !== p.core) issues.push({ level: 'error', where: w, message: `core must match the catalog (${cp.core}).` });
+  }
+}
+
+const DRILL_KINDS = ['interview', 'lookalike', 'reallife'];
+
+/** Hand-written drill items follow the writing rules. Every item, made or written, accepts known patterns. */
+function checkDrills(issues: Issue[], input: ContentInput, registry: Registry) {
+  const c = input.catalog;
+  const orderOf = (moduleId: string) => c?.modules.find((m) => m.id === moduleId)?.order ?? input.modules.find((m) => m.id === moduleId)?.order;
+  for (const id of duplicates(registry.drills.map((d) => d.id))) issues.push({ level: 'error', where: `drill ${id}`, message: 'duplicate id.' });
+  for (const d of input.drills ?? []) {
+    const w = `drill ${d.id}`;
+    if (!ID.test(d.id)) issues.push({ level: 'error', where: w, message: 'id must be lowercase kebab-case.' });
+    if (!DRILL_KINDS.includes(d.kind)) issues.push({ level: 'error', where: w, message: `kind must be one of ${DRILL_KINDS.join(', ')}.` });
+    required(issues, w, { prompt: d.prompt, clueExplanation: d.clueExplanation });
+    safeHtml(issues, w, { prompt: d.prompt });
+    const order = orderOf(d.moduleId);
+    if (order === undefined) { issues.push({ level: 'error', where: w, message: `unknown module "${d.moduleId}".` }); continue; }
+    const texts: [string, string][] = [['prompt', d.prompt], ['clueExplanation', d.clueExplanation], ...(d.limits ?? []).map((l, i): [string, string] => [`limit ${i + 1}`, l])];
+    for (const [name, text] of texts) prose(issues, `${w} ${name}`, text, order);
+  }
+  if (!c) return;
+  for (const d of registry.drills) {
+    if (d.acceptedPatternIds.length === 0) issues.push({ level: 'error', where: `drill ${d.id}`, message: 'needs at least one accepted pattern.' });
+    for (const id of d.acceptedPatternIds) if (!c.patterns.some((p) => p.id === id)) issues.push({ level: 'error', where: `drill ${d.id}`, message: `accepts unknown pattern "${id}".` });
+  }
+}
+
+/**
+ * Card ids hold learner progress. A list card is `<id>:<kind>-<index>`, so removing an item from the
+ * middle of a list shifts every later id. The lock file records each id with the start of its front.
+ */
+export function checkCardIds(cards: Card[], lock: Record<string, string>): Issue[] {
   const issues: Issue[] = [];
+  const now = new Map(cards.map((c) => [c.id, cardFingerprint(c)]));
+  for (const id of duplicates(cards.map((c) => c.id))) issues.push({ level: 'error', where: `card ${id}`, message: 'duplicate card id.' });
+  for (const [id, print] of Object.entries(lock)) {
+    const current = now.get(id);
+    if (current === undefined) issues.push({ level: 'warn', where: `card ${id}`, message: 'is gone, so learners lose its progress. Only remove list items from the end of a list.' });
+    else if (current !== print) issues.push({ level: 'warn', where: `card ${id}`, message: 'now shows a different item. Was an item removed from the middle of a list? If you only fixed the wording, run npm run cards:lock.' });
+  }
+  for (const id of now.keys()) if (!(id in lock)) issues.push({ level: 'warn', where: `card ${id}`, message: 'is new. Run npm run cards:lock to record it.' });
+  return issues;
+}
+
+export interface CheckOptions {
+  /** the saved content/card-ids.json */
+  cardLock?: Record<string, string>;
+}
+
+export function checkContent(input: ContentInput, opts: CheckOptions = {}): Issue[] {
+  const issues: Issue[] = [];
+  let registry: Registry;
   try {
-    buildRegistry(input);
+    registry = buildRegistry(input);
   } catch (err) {
     return [{ level: 'error', where: 'registry', message: (err as Error).message }];
   }
+  if (input.catalog) {
+    checkCatalog(issues, input.catalog);
+    checkBuiltAgainstCatalog(issues, input, input.catalog);
+  }
+  checkDrills(issues, input, registry);
+  if (opts.cardLock) issues.push(...checkCardIds(registry.cards, opts.cardLock));
   const orderOf = (moduleId: string) => input.modules.find((m) => m.id === moduleId)?.order;
   for (const m of input.modules) checkModule(issues, m, input);
   for (const l of input.lessons) {
